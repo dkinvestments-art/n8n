@@ -96,11 +96,10 @@ Upon completion of each deliverable:
 | Phase | Description | Duration | Milestone |
 |-------|------------|----------|-----------|
 | 1 | Requirements, design, foundation & data collection | Week 1 | Client profile, QBO/Xero auto-pull, Karbon pull, document-request emails, and manual payroll intake delivered |
-| 2 | Tax calculation + scorecard engine | Week 2 | Google Sheets templates + AI integration delivered |
-| 3 | Meeting output + post-meeting automation | Week 3 | Agenda/slides, Karbon task creation, notifications, and Fathom integration delivered |
-| 4 | Testing, documentation, handoff & support | Week 4 | All documentation, training, and handoff complete; short support period |
+| 2 | Processing + meeting output + post-meeting | Week 2 | Tax calculation + scorecard templates with AI, agenda/slides, Karbon task creation, notifications, and Fathom integration delivered |
+| 3 | Testing, documentation, handoff & support | Week 3 | All scenarios tested; documentation, training, and handoff complete; short support period |
 
-**Total project duration: approximately 3-4 weeks.**
+**Total project duration: approximately 3 weeks, with testing in the final week.**
 
 ---
 
@@ -117,8 +116,8 @@ Upon completion of each deliverable:
 |-----------|-----------|--------|----------|
 | Project kickoff | 25% | $_____ | Signing of this agreement |
 | Phase 1 delivery (Week 1) | 25% | $_____ | Approval of data collection workflows |
-| Phase 2 delivery (Week 2) | 25% | $_____ | Approval of tax calculation + scorecard templates |
-| Final handoff (Week 4) | 25% | $_____ | Completion of documentation and training |
+| Phase 2 delivery (Week 2) | 25% | $_____ | Approval of processing + output workflows |
+| Final handoff (Week 3) | 25% | $_____ | Completion of testing, documentation, and training |
 
 #### 4.3 Payment Terms
 Invoices are due within ___ days of receipt. Late payments accrue interest

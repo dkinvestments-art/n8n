@@ -942,7 +942,7 @@ pie title Automation Coverage (14 Process Steps)
 
 ```mermaid
 gantt
-    title Implementation Roadmap (3-4 Weeks)
+    title Implementation Roadmap (3 Weeks)
     dateFormat YYYY-MM-DD
     axisFormat %b %d
 
@@ -953,22 +953,19 @@ gantt
     Document request emails + Drive intake      :p1d, 2026-07-03, 3d
     Manual payroll upload + AI parse            :p1e, 2026-07-03, 3d
 
-    section Week 2 - Processing
-    Tax estimation templates                    :p2a, 2026-07-08, 4d
-    Entity comparison model                     :p2b, 2026-07-10, 3d
-    Scorecard generator                         :p2c, 2026-07-08, 3d
-    Claude AI integration                       :p2d, 2026-07-08, 5d
+    section Week 2 - Processing & Output
+    Tax estimation templates                    :p2a, 2026-07-08, 3d
+    Entity comparison model                     :p2b, 2026-07-09, 2d
+    Scorecard generator + Claude AI             :p2c, 2026-07-08, 3d
+    Meeting agenda generator + Slides           :p2d, 2026-07-10, 2d
+    Karbon task creation + notifications        :p2e, 2026-07-10, 2d
+    Fathom integration + action items           :p2f, 2026-07-11, 2d
 
-    section Week 3 - Output & Post-Meeting
-    Meeting agenda generator + Slides           :p3a, 2026-07-15, 3d
-    Karbon task creation + notifications        :p3b, 2026-07-15, 2d
-    Fathom integration + action items           :p3c, 2026-07-17, 3d
-
-    section Week 4 - Testing & Handoff
-    Sandbox testing all scenarios               :p4a, 2026-07-22, 3d
-    Documentation and training                  :p4b, 2026-07-22, 3d
-    Production import and validation            :p4c, 2026-07-24, 2d
-    Support period                              :p4d, 2026-07-25, 4d
+    section Week 3 - Testing & Handoff
+    Sandbox testing all scenarios               :p3a, 2026-07-15, 3d
+    Documentation and training                  :p3b, 2026-07-15, 2d
+    Production import and validation            :p3c, 2026-07-17, 2d
+    Support period                              :p3d, 2026-07-18, 2d
 ```
 
 ### 12.2 Phase Details
@@ -976,10 +973,9 @@ gantt
 | Phase | Duration | Cost | Dependencies |
 |-------|----------|------|-------------|
 | 1. Foundation & Data Collection | Week 1 | Developer cost (+ $0 internal setup) | None |
-| 2. Processing (tax + scorecard) | Week 2 | Developer cost | Phase 1 |
-| 3. Output & Post-Meeting | Week 3 | Developer cost | Phase 2 |
-| 4. Testing & Handoff | Week 4 | Developer cost + internal time | Phase 3 |
-| **Total** | **~3-4 weeks** | | |
+| 2. Processing & Output | Week 2 | Developer cost | Phase 1 |
+| 3. Testing & Handoff | Week 3 | Developer cost + internal time | Phase 2 |
+| **Total** | **~3 weeks (testing in the final week)** | | |
 
 ---
 
