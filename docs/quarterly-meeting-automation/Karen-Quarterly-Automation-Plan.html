@@ -303,7 +303,7 @@
 
 <div class="summary-box">
   <p><strong>What is this?</strong> A plan to automate the quarterly client meeting preparation process — the data gathering, tax calculations, scorecard building, and agenda writing that happens before every client meeting.</p>
-  <p><strong>The goal:</strong> Reduce prep time from <strong>~90 minutes per client</strong> down to <strong>~15-20 minutes of review</strong>, while keeping all the professional judgment and client relationships fully in your hands.</p>
+  <p><strong>The goal:</strong> Reduce prep time from <strong>~90 minutes per client</strong> down to <strong>~30 minutes</strong> (a quick manual payroll download plus review), while keeping all the professional judgment and client relationships fully in your hands.</p>
   <p><strong>No new software needed.</strong> Everything is built using tools already in the tech stack.</p>
 </div>
 
@@ -350,9 +350,9 @@ flowchart LR
     <div><strong>Check Karbon for pending items</strong><br>
     <em>Now:</em> You open Karbon, click through each work item. <em>After:</em> System auto-pulls all pending items and summarizes them for you.</div>
   </li>
-  <li class="step-auto"><span class="step-num">2</span>
+  <li class="step-manual"><span class="step-num">2</span>
     <div><strong>Download payroll / pay stubs</strong><br>
-    <em>Now:</em> You log into the payroll software, find each person, download. <em>After:</em> System auto-pulls from the payroll software (or sends an email request if no access).</div>
+    <em>Stays manual for now.</em> You (or an admin) log into the payroll software, download the pay stubs, and drop them in the client folder — just like today. We are intentionally <strong>not</strong> connecting directly to every client's payroll system. (This can be automated later if desired.)</div>
   </li>
   <li class="step-auto"><span class="step-num">3</span>
     <div><strong>Organize documents into client folders</strong><br>
@@ -378,9 +378,9 @@ flowchart LR
     <div><strong>Calculate estimated tax payments</strong><br>
     <em>Now:</em> You copy a ProConnect return, plug in numbers, calculate. <em>After:</em> System auto-populates a tax calculator from the financials. You review and apply your judgment on projections.</div>
   </li>
-  <li class="step-auto"><span class="step-num">9</span>
+  <li class="step-ai"><span class="step-num">9</span>
     <div><strong>Enter W-2 withholding from pay stubs</strong><br>
-    <em>Now:</em> You read pay stubs and type numbers. <em>After:</em> Payroll data auto-populates into the tax calculator. No retyping.</div>
+    <em>Now:</em> You read pay stubs and type numbers. <em>After:</em> Once you've dropped the pay stubs in the folder, AI reads them and fills the withholding numbers into the tax calculator for you. You review — no retyping. (No payroll connection needed.)</div>
   </li>
   <li class="step-ai"><span class="step-num">10</span>
     <div><strong>Model C-Corp tax savings</strong><br>
@@ -400,7 +400,7 @@ flowchart LR
   </li>
   <li class="step-auto"><span class="step-num">14</span>
     <div><strong>Assign tasks to team members</strong><br>
-    <em>Now:</em> You message Keto or create tasks manually. <em>After:</em> System auto-creates tasks in ClickUp/Karbon with context.</div>
+    <em>Now:</em> You message Keto or create tasks manually. <em>After:</em> System auto-creates work items/tasks in Karbon with context.</div>
   </li>
 </ul>
 
@@ -414,11 +414,11 @@ flowchart LR
     <div class="label">Current prep time per client</div>
   </div>
   <div class="impact-card">
-    <div class="number">~20 min</div>
-    <div class="label">After automation (review only)</div>
+    <div class="number">~30 min</div>
+    <div class="label">After automation (manual payroll + review)</div>
   </div>
   <div class="impact-card">
-    <div class="number">~70 min</div>
+    <div class="number">~60 min</div>
     <div class="label">Saved per client per quarter</div>
   </div>
   <div class="impact-card">
@@ -438,21 +438,21 @@ flowchart LR
   </thead>
   <tbody>
     <tr><td>1. Check Karbon</td><td>5 min</td><td>0 min</td><td><span class="badge badge-auto">Auto</span></td></tr>
-    <tr><td>2. Download payroll</td><td>5 min</td><td>0 min</td><td><span class="badge badge-auto">Auto</span></td></tr>
+    <tr><td>2. Download payroll</td><td>5 min</td><td>5 min</td><td><span class="badge badge-manual">Manual</span></td></tr>
     <tr><td>3. File documents</td><td>3 min</td><td>0 min</td><td><span class="badge badge-auto">Auto</span></td></tr>
     <tr><td>4. Check bank feeds</td><td>5 min</td><td>1 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
     <tr><td>5. Fix QBO rules</td><td>5 min</td><td>3 min</td><td><span class="badge badge-manual">Manual</span></td></tr>
     <tr><td>6. Reclassify transactions</td><td>10 min</td><td>8 min</td><td><span class="badge badge-manual">Manual</span></td></tr>
     <tr><td>7. Download financials</td><td>5 min</td><td>0 min</td><td><span class="badge badge-auto">Auto</span></td></tr>
     <tr><td>8. Tax estimation</td><td>15 min</td><td>3 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
-    <tr><td>9. W-2 withholding</td><td>5 min</td><td>0 min</td><td><span class="badge badge-auto">Auto</span></td></tr>
+    <tr><td>9. W-2 withholding</td><td>5 min</td><td>1 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
     <tr><td>10. Entity comparison</td><td>10 min</td><td>2 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
     <tr><td>11. Tax research</td><td>15 min</td><td>12 min</td><td><span class="badge badge-manual">Manual</span></td></tr>
     <tr><td>12. Scorecard</td><td>10 min</td><td>2 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
     <tr><td>13. Meeting agenda</td><td>5 min</td><td>2 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
     <tr><td>14. Delegate tasks</td><td>3 min</td><td>0 min</td><td><span class="badge badge-auto">Auto</span></td></tr>
     <tr style="font-weight:600; background:#EBF8FF">
-      <td>TOTAL</td><td>~101 min</td><td>~33 min</td><td></td>
+      <td>TOTAL</td><td>~101 min</td><td>~39 min</td><td></td>
     </tr>
   </tbody>
 </table>
@@ -471,27 +471,26 @@ flowchart TD
     C -->|"Yes"| D["✅ Auto-pull\nP&L and Balance Sheet"]
     C -->|"No"| E["📧 Send email\nto client/bookkeeper\nrequesting reports"]
 
-    B --> F{"Do we have\npayroll access?"}
-    F -->|"Yes"| G["✅ Auto-pull\npay stubs & withholding"]
+    B --> F{"Does the client\nhave payroll?"}
+    F -->|"Yes"| G["👤 You/admin download\npay stubs manually\n+ drop in folder"]
     F -->|"No payroll system"| H["⏭ Skip — owner takes\ndistributions only"]
-    F -->|"No access"| I["📧 Send email\nrequesting pay stubs"]
 
     D --> J["🧮 Calculate Taxes\n& Build Scorecard"]
     E --> K["⏳ Wait for docs\n(resume when uploaded)"]
-    G --> J
+    G --> P["🤖 AI reads pay stub\nfills withholding"]
+    P --> J
     H --> J
-    I --> K
     K --> J
 
     J --> L["📄 Generate Agenda\n& Meeting Docs"]
     L --> M["📧 Notify You:\nPrep is Ready"]
-    M --> N["👤 You Review\n(15-20 min)"]
+    M --> N["👤 You Review\n(20-30 min)"]
 
     style D fill:#48BB78,color:#fff,stroke:none
-    style G fill:#48BB78,color:#fff,stroke:none
+    style G fill:#FC8181,color:#fff,stroke:none
     style H fill:#A0AEC0,color:#fff,stroke:none
+    style P fill:#ED8936,color:#fff,stroke:none
     style E fill:#ED8936,color:#fff,stroke:none
-    style I fill:#ED8936,color:#fff,stroke:none
     style J fill:#9F7AEA,color:#fff,stroke:none
     style L fill:#9F7AEA,color:#fff,stroke:none
     style M fill:#4299E1,color:#fff,stroke:none
@@ -522,7 +521,7 @@ flowchart TD
     B --> B1["Revenue: up/down vs last year\nProfit margin trend\nOwner take-home\n+ plain-English explanation"]
     C --> C1["Quarterly payment amounts\nFederal + State + PTE\nEntity comparison if applicable\nAI validation notes"]
     D --> D1["Quick Win to highlight\nScorecard summary\nPayment due dates\nNext 90 days plan\nOpen items"]
-    E --> E1["Tasks auto-created in ClickUp\nfor your team members"]
+    E --> E1["Work items auto-created\nin Karbon for your team"]
     F --> F1["Data gaps or missing info\nUnusual numbers flagged\nItems needing your judgment"]
 
     style A fill:#2D3748,color:#fff,stroke:none
@@ -567,7 +566,7 @@ flowchart TD
 flowchart TD
     A["Financial Data\n(from QuickBooks)"] --> B["Project Annual Income\n= YTD ÷ months × 12"]
 
-    C["Payroll Data\n(from Payroll Software)"] --> D["Owner W-2 Salary\n+ Withholdings"]
+    C["Payroll Data\n(from manually\nuploaded pay stubs)"] --> D["Owner W-2 Salary\n+ Withholdings"]
 
     B --> E["Net Profit\n= Income − Expenses"]
     E --> F["Pass-Through to Owner\n= Net Profit × ownership %"]
@@ -609,17 +608,14 @@ flowchart LR
     A["🤝 Meeting\nEnds"] --> B["🎙 Fathom\nTranscript"]
     B --> C["🤖 AI Reads\nTranscript"]
     C --> D["Extracts\nAction Items"]
-    D --> E["✅ Creates Tasks\nin ClickUp"]
+    D --> E["✅ Creates Tasks\n+ Notes in Karbon"]
     D --> F["📧 Drafts Follow-Up\nEmail to Client"]
-    E --> G["📋 Updates\nKarbon"]
-    F --> G
 
     style A fill:#FC8181,color:#fff,stroke:none
     style B fill:#4299E1,color:#fff,stroke:none
     style C fill:#ED8936,color:#fff,stroke:none
     style E fill:#48BB78,color:#fff,stroke:none
     style F fill:#48BB78,color:#fff,stroke:none
-    style G fill:#48BB78,color:#fff,stroke:none
 </pre>
 </div>
 
@@ -632,9 +628,9 @@ flowchart LR
 <div class="mermaid-container">
 <pre class="mermaid">
 pie title How the 14 Steps Break Down
-    "Fully Automated (6 steps)" : 6
-    "AI-Assisted — You Review (5 steps)" : 5
-    "Stays Manual (3 steps)" : 3
+    "Fully Automated (4 steps)" : 4
+    "AI-Assisted — You Review (6 steps)" : 6
+    "Stays Manual (4 steps)" : 4
 </pre>
 </div>
 
@@ -642,12 +638,10 @@ pie title How the 14 Steps Break Down
 <table>
   <thead><tr><th>Step</th><th>What the System Does</th></tr></thead>
   <tbody>
-    <tr><td>Pull Karbon items</td><td>Retrieves all open tasks and recent client communications</td></tr>
-    <tr><td>Download payroll</td><td>Pulls pay stubs and withholding data from the payroll software (or sends request email)</td></tr>
+    <tr><td>Pull Karbon items</td><td>Retrieves all open work items and recent client communications</td></tr>
     <tr><td>Organize files</td><td>Creates quarter folders in Google Drive, saves everything with consistent names</td></tr>
     <tr><td>Download financials</td><td>Pulls P&L and Balance Sheet from QuickBooks (or sends request email)</td></tr>
-    <tr><td>Populate W-2 data</td><td>Feeds payroll withholding numbers into the tax calculator automatically</td></tr>
-    <tr><td>Create team tasks</td><td>Auto-creates ClickUp tasks for anything needing team action</td></tr>
+    <tr><td>Create team tasks</td><td>Auto-creates Karbon work items for anything needing team action</td></tr>
   </tbody>
 </table>
 
@@ -656,6 +650,7 @@ pie title How the 14 Steps Break Down
   <thead><tr><th>Step</th><th>What AI Does</th><th>What You Do</th></tr></thead>
   <tbody>
     <tr><td>Bank feed check</td><td>Flags sync issues, categorization problems</td><td>Investigate flagged items</td></tr>
+    <tr><td>W-2 withholding</td><td>Reads the manually uploaded pay stubs, fills the withholding numbers into the calculator</td><td>Review the numbers</td></tr>
     <tr><td>Tax estimation</td><td>Populates calculator, runs projections</td><td>Review projections, adjust judgment calls</td></tr>
     <tr><td>Entity comparison</td><td>Calculates "with vs. without" C-Corp scenarios</td><td>Verify the assumptions are right</td></tr>
     <tr><td>Client scorecard</td><td>Calculates all 4 metrics, writes explanation</td><td>Review the narrative, tweak wording</td></tr>
@@ -663,12 +658,13 @@ pie title How the 14 Steps Break Down
   </tbody>
 </table>
 
-<h3>Stays Manual — Requires Your Expertise</h3>
+<h3>Stays Manual — Requires Your Expertise (or by choice for now)</h3>
 <table>
-  <thead><tr><th>Step</th><th>Why It Can't Be Automated</th></tr></thead>
+  <thead><tr><th>Step</th><th>Why It Stays Manual</th></tr></thead>
   <tbody>
+    <tr><td>Download payroll</td><td><strong>By choice for now.</strong> We don't want to connect directly to every client's payroll system, so you/an admin download the pay stubs and drop them in the client folder. (Can be automated later.)</td></tr>
     <tr><td>Fix QBO rules</td><td>QuickBooks doesn't allow editing categorization rules through its software connection — must be done in the QuickBooks interface</td></tr>
-    <tr><td>Reclassify transactions</td><td>Requires professional judgment about correct categories; system creates the task and instructions for your team</td></tr>
+    <tr><td>Reclassify transactions</td><td>Requires professional judgment about correct categories; system creates the Karbon task and instructions for your team</td></tr>
     <tr><td>Tax strategy research</td><td>Reading tax code, applying it to specific client situations, and making professional recommendations — this is your core value and expertise</td></tr>
   </tbody>
 </table>
@@ -686,9 +682,8 @@ pie title How the 14 Steps Break Down
   <div class="sw-item"><strong>Gmail</strong><br><span>Sends document request emails to clients</span></div>
   <div class="sw-item"><strong>QuickBooks Online</strong><br><span>Pulls P&L, Balance Sheet, bank feed data</span></div>
   <div class="sw-item"><strong>Xero</strong><br><span>Alternative to QBO for some clients</span></div>
-  <div class="sw-item"><strong>Payroll Software</strong><br><span>Pulls payroll and withholding data (Gusto, Rippling, ADP, etc.)</span></div>
-  <div class="sw-item"><strong>Karbon</strong><br><span>Pulls pending items, updates work status</span></div>
-  <div class="sw-item"><strong>ClickUp</strong><br><span>Auto-creates tasks for team members</span></div>
+  <div class="sw-item"><strong>Payroll Software</strong><br><span>Pay stubs downloaded manually (Gusto, Rippling, ADP, etc.) — not auto-connected</span></div>
+  <div class="sw-item"><strong>Karbon</strong><br><span>Pulls pending items, auto-creates work items/tasks, updates status</span></div>
   <div class="sw-item"><strong>GoHighLevel</strong><br><span>Sends templated client emails</span></div>
   <div class="sw-item"><strong>Claude AI</strong><br><span>Parses data, validates calculations, writes agendas</span></div>
   <div class="sw-item"><strong>Fathom</strong><br><span>Meeting transcription and action item extraction</span></div>
@@ -712,7 +707,7 @@ pie title How the 14 Steps Break Down
 <div class="timeline-item">
   <div class="week">Weeks 3-4</div>
   <div class="title">Data Collection Workflows</div>
-  <div class="desc">Auto-pull from QuickBooks, Xero, and payroll software. Auto-send document requests when no access. Set up file intake detection.</div>
+  <div class="desc">Auto-pull from QuickBooks and Xero. Auto-send document requests when no access. Set up file intake detection. (Payroll stays a manual download for now.)</div>
 </div>
 
 <div class="timeline-item">
@@ -766,17 +761,18 @@ pie title How the 14 Steps Break Down
 <table>
   <thead><tr><th>Time</th><th>Activity</th></tr></thead>
   <tbody>
+    <tr><td>(Day before)</td><td>You or an admin download pay stubs and drop them in the client folder — the one manual data step (~5 min)</td></tr>
     <tr><td>8:00 AM</td><td>Open email — prep package is already waiting for you</td></tr>
     <tr><td>8:02 AM</td><td>Review scorecard and tax estimates (numbers look right?)</td></tr>
-    <tr><td>8:08 AM</td><td>Review agenda draft, add your personal talking points</td></tr>
-    <tr><td>8:12 AM</td><td>Check flags — any issues that need attention before the meeting?</td></tr>
-    <tr><td>8:15 AM</td><td>Quick look at the research items that need your judgment</td></tr>
-    <tr><td style="font-weight:600">~8:20 AM</td><td style="font-weight:600">Done — about 20 minutes, all review</td></tr>
+    <tr><td>8:10 AM</td><td>Review agenda draft, add your personal talking points</td></tr>
+    <tr><td>8:18 AM</td><td>Check flags — any issues that need attention before the meeting?</td></tr>
+    <tr><td>8:22 AM</td><td>Quick look at the research items that need your judgment</td></tr>
+    <tr><td style="font-weight:600">~8:30 AM</td><td style="font-weight:600">Done — about 30 minutes (mostly review)</td></tr>
   </tbody>
 </table>
 
 <div class="summary-box">
-  <p><strong>The bottom line:</strong> You spend your time on what matters — reviewing numbers, applying professional judgment, and preparing your advisory insights for the client. The system handles all the data gathering, number crunching, and document assembly.</p>
+  <p><strong>The bottom line:</strong> You spend your time on what matters — reviewing numbers, applying professional judgment, and preparing your advisory insights for the client. Aside from a quick manual payroll download, the system handles the data gathering, number crunching, and document assembly.</p>
   <p>Your expertise is the part clients pay for. The automation just removes the busywork so you can focus on it.</p>
 </div>
 

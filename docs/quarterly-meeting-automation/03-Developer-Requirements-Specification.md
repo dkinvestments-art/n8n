@@ -42,9 +42,8 @@ integrate with as many of these as possible.
 | **Google Workspace** | Email, Drive, Docs, Sheets, Slides, Calendar | Yes (OAuth2) | Primary productivity suite |
 | **QuickBooks Online** | Accounting | Yes (Intuit API) | Not all clients use QBO; some use Xero, Desktop QB, or nothing |
 | **Intuit ProConnect** | Tax preparation | Limited API | Tax returns stay manual |
-| **Karbon** | Practice management | Yes (REST API) | Tracks work items, client communications |
-| **ClickUp** | Task management | Yes (REST API) | Task delegation to team |
-| **Rippling** | Payroll | Yes (REST API) | Only some clients use Rippling |
+| **Karbon** | Practice management & task management | Yes (REST API) | Tracks work items, client communications, and team task delegation |
+| **Rippling** | Payroll | Manual / offline | Some clients use Rippling; pay stubs are downloaded manually, no API integration |
 | **GoHighLevel** | CRM / Marketing | Yes (REST API) | Email templates and client communication |
 | **Claude AI** | AI processing | Yes (Anthropic API) | Data parsing, calculations, text generation |
 | **ChatGPT** | AI processing | Yes (OpenAI API) | Backup / alternative AI processing |
@@ -72,15 +71,15 @@ state_primary           - Primary state (e.g., CA, NY, TX)
 states_additional       - Additional states (comma-separated)
 accounting_software     - QBO | Xero | Desktop_QB | Wave | None
 accounting_access       - API_Full | API_ReadOnly | Portal_Login | No_Access
-payroll_system          - Rippling | Gusto | ADP | Paychex | Manual | None
-payroll_access          - API | Portal_Login | No_Access
-payroll_contact_email   - Who to request payroll from (if no API)
+payroll_system          - Rippling | Gusto | ADP | Paychex | Other | None (informational only — which payroll software the client uses)
+payroll_access          - Manual_Download | No_Access (no API auto-pull; pay stubs are downloaded manually)
+payroll_contact_email   - Who to request pay stubs from (informational)
 bookkeeper_email        - Who to request financials from (if no API)
 client_email            - Primary client email
 meeting_cadence         - Quarterly | Monthly | Semi_Annual
 google_drive_folder     - Link to client's document folder
-karbon_client_id        - Karbon identifier
-clickup_space_id        - ClickUp space for task creation
+karbon_client_id        - Karbon identifier (used for both client lookup and work item creation)
+karbon_work_template    - Karbon work template to use when creating work items
 has_c_corp              - Yes | No (drives entity comparison model)
 has_pte_election        - Yes | No (drives PTE tax calculation)
 last_meeting_date       - Date of most recent quarterly meeting
@@ -98,14 +97,14 @@ ELSE IF accounting_access = "Portal_Login"
 ELSE
     → Send templated document request email to client/bookkeeper
 
-IF payroll_access = "API"
-    → Auto-pull payroll data via API
-ELSE IF payroll_access = "Portal_Login"
-    → Generate manual pull instructions for team
-ELSE IF payroll_system = "None"
+IF payroll_system = "None"
     → Skip payroll; flag as "distributions only"
+       (pull distributions from accounting data / Balance Sheet if available)
 ELSE
-    → Send templated payroll request email to payroll_contact
+    → Manual collection: team/admin downloads pay stubs from the client's
+       payroll software and uploads them to the client's Google Drive folder
+    → Document-intake mechanism (Claude AI) parses the uploaded pay stub PDF
+       to extract withholding numbers
 
 IF entity_type = "Multi-Entity" OR has_c_corp = "Yes"
     → Use multi-entity tax calculation template
@@ -197,12 +196,12 @@ for the client from Karbon.
 1. Determine recipient: `bookkeeper_email` if available, else `client_email`
 2. Generate email from template (see Section 5.2)
 3. Send via Gmail API or GoHighLevel API
-4. Create ClickUp task: "Awaiting financial documents from [Client]"
+4. Create Karbon work item: "Awaiting financial documents from [Client]"
 5. Set up Google Drive watch on client folder for incoming files
 
 **Output:**
 - Email sent confirmation
-- ClickUp task ID
+- Karbon work item ID
 - Google Drive watch trigger configured
 
 **Branch C: Document Intake (triggered when files arrive)**
@@ -222,29 +221,37 @@ for the client from Karbon.
 **Purpose:** Obtain YTD payroll, withholding, and compensation data for
 business owners/employees.
 
-**Branch A: Payroll API Available (Rippling, Gusto, ADP)**
+**Note:** Payroll is collected **manually** — the Firm does NOT connect via
+API to client payroll systems. The Firm's team (or an admin) downloads the
+pay stubs from whatever payroll software the client uses (e.g., Rippling,
+Gusto, ADP) and uploads them to the client's Google Drive folder. The
+document-intake mechanism then uses Claude AI to parse the uploaded pay stub
+PDFs and extract the withholding numbers. Parsing an uploaded stub is fine —
+it does NOT count as connecting to a payroll system.
+
+**Branch A: Client Has Payroll (manual pay stub collection)**
 
 **Inputs:**
-- `payroll_system` and `payroll_access` from Client Profile
+- `payroll_system` from Client Profile (informational — which software the
+  client uses)
+- `payroll_contact_email` (who to request stubs from, if needed)
 - Employee list (from Client Profile or prior setup)
 
 **Process:**
-1. Authenticate to payroll API
-2. Pull YTD payroll summary for each owner/employee
-3. Extract: gross pay, federal withholding, state withholding, deductions,
-   health insurance premiums
+1. Team/admin manually downloads the YTD pay stubs from the client's payroll
+   software and uploads them to the client's Google Drive folder
+   (or requests them via templated email — see Section 5.2)
+2. Google Drive trigger detects the uploaded pay stub PDF(s)
+3. Send the pay stub PDF to Claude AI for extraction of: gross pay, federal
+   withholding, state withholding, deductions, health insurance premiums
 4. Calculate annualized projections (YTD / months elapsed * 12)
 5. Format as structured data
 
 **Output:**
 - Payroll summary JSON
-- Pay stub PDFs saved to Google Drive client folder
+- Pay stub PDFs retained in Google Drive client folder
 
-**Branch B: No API (request via email)**
-
-Same pattern as Financial Data Branch B — templated email + ClickUp task.
-
-**Branch C: No Payroll System**
+**Branch B: No Payroll System**
 
 **Process:**
 1. Flag in prep document: "No W-2 payroll. Owner compensation via
@@ -389,7 +396,7 @@ identifies work that needs human attention.
   "bank feed out of date", "documents requested from client")
 
 **Process:**
-1. For each flag, create a ClickUp task (or Karbon work item):
+1. For each flag, create a Karbon work item:
    - Title: descriptive action item
    - Assignee: based on task type (admin tasks → designated team member,
      review tasks → preparer)
@@ -398,7 +405,7 @@ identifies work that needs human attention.
 2. Send summary notification to preparer via email or Slack
 
 **Output:**
-- ClickUp task IDs
+- Karbon work item IDs
 - Notification sent confirmation
 
 ---
@@ -420,13 +427,13 @@ from the Fathom transcript and create follow-up tasks.
    - Suggested deadline
    - Priority (high/medium/low)
    ```
-3. Create ClickUp tasks for Firm-owned action items
+3. Create Karbon work items for Firm-owned action items
 4. Create follow-up email draft (via Gmail or GoHighLevel) for client-owned
    action items
 5. Update Karbon with meeting notes summary
 
 **Output:**
-- ClickUp tasks created
+- Karbon work items created
 - Client follow-up email draft
 - Karbon updated
 
@@ -516,19 +523,19 @@ profiles:
 
 | Scenario | Entity | Accounting | Payroll | State | Special |
 |----------|--------|-----------|---------|-------|---------|
-| A | S-Corp | QBO (API) | Rippling (API) | CA | Standard case |
-| B | C-Corp + S-Corp | QBO (API) | Gusto (API) | CA | Multi-entity comparison |
+| A | S-Corp | QBO (API) | Rippling (manual pay stub upload) | CA | Standard case |
+| B | C-Corp + S-Corp | QBO (API) | Gusto (manual pay stub upload) | CA | Multi-entity comparison |
 | C | LLC | Xero (API) | None | NY | No payroll, distributions only |
-| D | Sole Prop | No software | No access | TX | Everything manual/email |
-| E | S-Corp | QBO (view-only) | ADP (no API) | CA + NY | Multi-state, partial access |
-| F | Multi-Entity | QBO (API) | Rippling (API) | CA | C-Corp with PTE election |
+| D | Sole Prop | No software | No payroll | TX | Everything manual/email |
+| E | S-Corp | QBO (view-only) | ADP (manual pay stub upload) | CA + NY | Multi-state, partial access |
+| F | Multi-Entity | QBO (API) | Rippling (manual pay stub upload) | CA | C-Corp with PTE election |
 
 ### 6.2 Test Cases
 For each scenario, verify:
 - [ ] Correct branching logic fires
 - [ ] API calls return expected data (sandbox)
 - [ ] Email templates generate correctly with proper variable substitution
-- [ ] ClickUp tasks create with correct assignees and due dates
+- [ ] Karbon work items create with correct assignees and due dates
 - [ ] Google Sheets templates populate correctly
 - [ ] Claude AI prompts return usable responses
 - [ ] Google Docs/Slides output is properly formatted

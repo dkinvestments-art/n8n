@@ -75,7 +75,7 @@ and test environments.** The Developer shall:
 The Developer shall NOT have access to:
 - The Firm's production n8n instance
 - The Firm's QuickBooks Online accounts or any client QBO accounts
-- The Firm's Karbon, Rippling, ClickUp, or GoHighLevel accounts
+- The Firm's Karbon, payroll software, or GoHighLevel accounts
 - The Firm's Google Workspace (production)
 - Any client financial data, tax returns, or personally identifiable information
 
