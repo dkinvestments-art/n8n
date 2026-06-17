@@ -942,57 +942,44 @@ pie title Automation Coverage (14 Process Steps)
 
 ```mermaid
 gantt
-    title Implementation Roadmap
+    title Implementation Roadmap (3-4 Weeks)
     dateFormat YYYY-MM-DD
     axisFormat %b %d
 
-    section Phase 1 - Foundation
-    Client Profile Matrix          :p1a, 2026-07-01, 3d
-    Google Drive folder templates   :p1b, 2026-07-01, 2d
-    Email templates in GHL/Gmail    :p1c, 2026-07-02, 3d
+    section Week 1 - Foundation & Data Collection
+    Client Profile + folders + email templates :p1a, 2026-07-01, 2d
+    QBO + Xero auto-pull workflows              :p1b, 2026-07-01, 4d
+    Karbon pending items pull                   :p1c, 2026-07-02, 2d
+    Document request emails + Drive intake      :p1d, 2026-07-03, 3d
+    Manual payroll upload + AI parse            :p1e, 2026-07-03, 3d
 
-    section Phase 2 - Data Collection
-    QBO API auto-pull workflow      :p2a, 2026-07-07, 7d
-    Xero API auto-pull workflow     :p2b, 2026-07-07, 5d
-    Manual payroll upload + AI parse :p2c, 2026-07-07, 5d
-    Document request email workflow  :p2d, 2026-07-10, 3d
-    Drive file watch + intake        :p2e, 2026-07-14, 5d
-    Karbon pending items pull        :p2f, 2026-07-07, 3d
+    section Week 2 - Processing
+    Tax estimation templates                    :p2a, 2026-07-08, 4d
+    Entity comparison model                     :p2b, 2026-07-10, 3d
+    Scorecard generator                         :p2c, 2026-07-08, 3d
+    Claude AI integration                       :p2d, 2026-07-08, 5d
 
-    section Phase 3 - Processing
-    Tax estimation templates         :p3a, 2026-07-21, 7d
-    Entity comparison model          :p3b, 2026-07-25, 5d
-    Scorecard generator              :p3c, 2026-07-21, 5d
-    Claude AI integration            :p3d, 2026-07-21, 7d
+    section Week 3 - Output & Post-Meeting
+    Meeting agenda generator + Slides           :p3a, 2026-07-15, 3d
+    Karbon task creation + notifications        :p3b, 2026-07-15, 2d
+    Fathom integration + action items           :p3c, 2026-07-17, 3d
 
-    section Phase 4 - Output
-    Meeting agenda generator         :p4a, 2026-08-04, 5d
-    Google Slides template           :p4b, 2026-08-04, 3d
-    Task delegation workflow          :p4c, 2026-08-04, 3d
-    Notification workflow             :p4d, 2026-08-07, 2d
-
-    section Phase 5 - Post-Meeting
-    Fathom integration               :p5a, 2026-08-11, 5d
-    Post-meeting task creation        :p5b, 2026-08-14, 3d
-
-    section Phase 6 - Testing & Handoff
-    Sandbox testing all scenarios     :p6a, 2026-08-18, 5d
-    Documentation and training        :p6b, 2026-08-18, 5d
-    Production import and validation  :p6c, 2026-08-25, 5d
-    Support period                    :p6d, 2026-08-25, 10d
+    section Week 4 - Testing & Handoff
+    Sandbox testing all scenarios               :p4a, 2026-07-22, 3d
+    Documentation and training                  :p4b, 2026-07-22, 3d
+    Production import and validation            :p4c, 2026-07-24, 2d
+    Support period                              :p4d, 2026-07-25, 4d
 ```
 
 ### 12.2 Phase Details
 
 | Phase | Duration | Cost | Dependencies |
 |-------|----------|------|-------------|
-| 1. Foundation | 1 week | $0 (internal) | None |
-| 2. Data Collection | 2 weeks | Developer cost | Phase 1 |
-| 3. Processing | 2 weeks | Developer cost | Phase 2 |
-| 4. Output | 1 week | Developer cost | Phase 3 |
-| 5. Post-Meeting | 1 week | Developer cost | Phase 4 |
-| 6. Testing & Handoff | 2 weeks | Developer cost + internal time | Phase 5 |
-| **Total** | **~9 weeks** | | |
+| 1. Foundation & Data Collection | Week 1 | Developer cost (+ $0 internal setup) | None |
+| 2. Processing (tax + scorecard) | Week 2 | Developer cost | Phase 1 |
+| 3. Output & Post-Meeting | Week 3 | Developer cost | Phase 2 |
+| 4. Testing & Handoff | Week 4 | Developer cost + internal time | Phase 3 |
+| **Total** | **~3-4 weeks** | | |
 
 ---
 

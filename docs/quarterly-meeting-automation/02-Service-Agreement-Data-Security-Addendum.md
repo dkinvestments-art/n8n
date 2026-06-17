@@ -95,13 +95,12 @@ Upon completion of each deliverable:
 
 | Phase | Description | Duration | Milestone |
 |-------|------------|----------|-----------|
-| 1 | Requirements review and design | Week 1-2 | Architecture document approved |
-| 2 | Core workflow build (API clients) | Week 3-4 | QBO + payroll auto-pull workflows delivered |
-| 3 | Adaptive workflows (non-API clients) | Week 4-5 | Document intake + email request workflows delivered |
-| 4 | Tax calculation + scorecard engine | Week 5-6 | Google Sheets templates delivered |
-| 5 | Meeting prep output (agenda, slides) | Week 6-7 | Output templates delivered |
-| 6 | Documentation and handoff | Week 7-8 | All documentation and training delivered |
-| 7 | Support and iteration | Week 8-10 | Bug fixes, adjustments |
+| 1 | Requirements, design, foundation & data collection | Week 1 | Client profile, QBO/Xero auto-pull, Karbon pull, document-request emails, and manual payroll intake delivered |
+| 2 | Tax calculation + scorecard engine | Week 2 | Google Sheets templates + AI integration delivered |
+| 3 | Meeting output + post-meeting automation | Week 3 | Agenda/slides, Karbon task creation, notifications, and Fathom integration delivered |
+| 4 | Testing, documentation, handoff & support | Week 4 | All documentation, training, and handoff complete; short support period |
+
+**Total project duration: approximately 3-4 weeks.**
 
 ---
 
@@ -117,9 +116,9 @@ Upon completion of each deliverable:
 | Milestone | % of Total | Amount | Due Upon |
 |-----------|-----------|--------|----------|
 | Project kickoff | 25% | $_____ | Signing of this agreement |
-| Phase 2 delivery | 25% | $_____ | Approval of core workflows |
-| Phase 5 delivery | 25% | $_____ | Approval of all templates |
-| Final handoff | 25% | $_____ | Completion of documentation and training |
+| Phase 1 delivery (Week 1) | 25% | $_____ | Approval of data collection workflows |
+| Phase 2 delivery (Week 2) | 25% | $_____ | Approval of tax calculation + scorecard templates |
+| Final handoff (Week 4) | 25% | $_____ | Completion of documentation and training |
 
 #### 4.3 Payment Terms
 Invoices are due within ___ days of receipt. Late payments accrue interest

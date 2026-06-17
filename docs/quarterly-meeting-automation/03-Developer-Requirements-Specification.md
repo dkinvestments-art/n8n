@@ -593,7 +593,8 @@ The project is considered complete when:
 6. The Firm successfully imports one workflow into their production n8n
    and runs it with their own credentials (Developer provides support
    via screen share)
-7. A 2-week support period follows final delivery for bug fixes
+7. A short (approximately 1-week) support period follows final delivery
+   for bug fixes (within the overall 3-4 week project timeline)
 
 ---
 
