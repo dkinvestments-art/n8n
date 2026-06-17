@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quarterly Meeting Prep — Automation Plan</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: #1a1a2e;
+    line-height: 1.6;
+    background: #fff;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 50px;
+  }
+
+  @media print {
+    body { padding: 20px 30px; max-width: 100%; }
+    .page-break { page-break-before: always; }
+    .no-print { display: none; }
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 4px;
+  }
+
+  h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #2d3748;
+    margin-top: 36px;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #e2e8f0;
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #4a5568;
+    margin-top: 20px;
+    margin-bottom: 8px;
+  }
+
+  p, li {
+    font-size: 14px;
+    color: #2d3748;
+    margin-bottom: 8px;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: #718096;
+    margin-bottom: 6px;
+  }
+
+  .date-line {
+    font-size: 13px;
+    color: #a0aec0;
+    margin-bottom: 30px;
+  }
+
+  .summary-box {
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #4299e1;
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 20px 0;
+  }
+
+  .summary-box p {
+    margin-bottom: 4px;
+  }
+
+  .summary-box strong {
+    color: #2b6cb0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 20px 0;
+    font-size: 13px;
+  }
+
+  th {
+    background: #2d3748;
+    color: #fff;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) { background: #f7fafc; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .badge-auto { background: #c6f6d5; color: #22543d; }
+  .badge-ai { background: #fefcbf; color: #744210; }
+  .badge-manual { background: #fed7d7; color: #9b2c2c; }
+
+  .mermaid-container {
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 16px 0;
+    overflow-x: auto;
+    text-align: center;
+  }
+
+  .mermaid { font-size: 13px; }
+
+  .impact-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+
+  .impact-card {
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .impact-card .number {
+    font-size: 32px;
+    font-weight: 700;
+    color: #2b6cb0;
+  }
+
+  .impact-card .label {
+    font-size: 12px;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .step-list {
+    list-style: none;
+    padding: 0;
+  }
+
+  .step-list li {
+    padding: 10px 14px;
+    margin-bottom: 6px;
+    border-radius: 6px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .step-list .step-num {
+    background: #2d3748;
+    color: #fff;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .step-auto { background: #f0fff4; border: 1px solid #c6f6d5; }
+  .step-auto .step-num { background: #38a169; }
+
+  .step-ai { background: #fffff0; border: 1px solid #fefcbf; }
+  .step-ai .step-num { background: #d69e2e; }
+
+  .step-manual { background: #fff5f5; border: 1px solid #fed7d7; }
+  .step-manual .step-num { background: #e53e3e; }
+
+  .legend {
+    display: flex;
+    gap: 20px;
+    margin: 12px 0 16px 0;
+    font-size: 13px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .legend-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+  }
+
+  .dot-auto { background: #38a169; }
+  .dot-ai { background: #d69e2e; }
+  .dot-manual { background: #e53e3e; }
+
+  .timeline-item {
+    padding: 12px 16px;
+    border-left: 3px solid #4299e1;
+    margin-left: 12px;
+    margin-bottom: 12px;
+    background: #f7fafc;
+    border-radius: 0 6px 6px 0;
+  }
+
+  .timeline-item .week {
+    font-size: 11px;
+    font-weight: 600;
+    color: #4299e1;
+    text-transform: uppercase;
+  }
+
+  .timeline-item .title {
+    font-weight: 600;
+    font-size: 14px;
+    color: #2d3748;
+  }
+
+  .timeline-item .desc {
+    font-size: 13px;
+    color: #718096;
+  }
+
+  .callout {
+    background: #ebf8ff;
+    border: 1px solid #bee3f8;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 16px 0;
+  }
+
+  .callout-title {
+    font-weight: 600;
+    color: #2b6cb0;
+    margin-bottom: 4px;
+  }
+
+  .software-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 12px 0;
+  }
+
+  .sw-item {
+    padding: 8px 12px;
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+
+  .sw-item strong { color: #2d3748; }
+  .sw-item span { color: #718096; font-size: 12px; }
+
+  .footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 12px;
+    color: #a0aec0;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<h1>Quarterly Meeting Prep</h1>
+<p class="subtitle">Automation Plan for Client Review Process</p>
+<p class="date-line">Prepared June 2026 &nbsp;|&nbsp; Confidential</p>
+
+<div class="summary-box">
+  <p><strong>What is this?</strong> A plan to automate the quarterly client meeting preparation process — the data gathering, tax calculations, scorecard building, and agenda writing that happens before every client meeting.</p>
+  <p><strong>The goal:</strong> Reduce prep time from <strong>~90 minutes per client</strong> down to <strong>~15-20 minutes of review</strong>, while keeping all the professional judgment and client relationships fully in your hands.</p>
+  <p><strong>No new software needed.</strong> Everything is built using tools already in the tech stack.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2>1. The Big Picture</h2>
+
+<p>Here's the entire process from start to finish — from the moment a meeting appears on the calendar to the follow-up after the meeting is over:</p>
+
+<div class="mermaid-container">
+<pre class="mermaid">
+flowchart LR
+    A["📅 Calendar\nDetects Meeting"] --> B["📥 Collect\nData"]
+    B --> C["🧮 Calculate\nTaxes & Scorecard"]
+    C --> D["📄 Generate\nDocs & Agenda"]
+    D --> E["📧 Notify\nYou"]
+    E --> F["👤 You Review\n& Customize"]
+    F --> G["🤝 Client\nMeeting"]
+    G --> H["✅ Auto-Create\nFollow-Up Tasks"]
+
+    style A fill:#48BB78,color:#fff,stroke:none
+    style B fill:#4299E1,color:#fff,stroke:none
+    style C fill:#ED8936,color:#fff,stroke:none
+    style D fill:#9F7AEA,color:#fff,stroke:none
+    style E fill:#4299E1,color:#fff,stroke:none
+    style F fill:#FC8181,color:#fff,stroke:none
+    style G fill:#FC8181,color:#fff,stroke:none
+    style H fill:#48BB78,color:#fff,stroke:none
+</pre>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot dot-auto"></div> Fully automated</div>
+  <div class="legend-item"><div class="legend-dot dot-ai"></div> AI does the work, you review</div>
+  <div class="legend-item"><div class="legend-dot dot-manual"></div> You do this (can't be automated)</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>2. Your Current 14 Steps (and What Changes)</h2>
+
+<p>Here are the 14 steps you currently do by hand for every quarterly meeting, and what happens to each one:</p>
+
+<ul class="step-list">
+  <li class="step-auto"><span class="step-num">1</span>
+    <div><strong>Check Karbon for pending items</strong><br>
+    <em>Now:</em> You open Karbon, click through each work item. <em>After:</em> System auto-pulls all pending items and summarizes them for you.</div>
+  </li>
+  <li class="step-auto"><span class="step-num">2</span>
+    <div><strong>Download payroll / pay stubs</strong><br>
+    <em>Now:</em> You log into Rippling, find each person, download. <em>After:</em> System auto-pulls from Rippling (or sends an email request if no access).</div>
+  </li>
+  <li class="step-auto"><span class="step-num">3</span>
+    <div><strong>Organize documents into client folders</strong><br>
+    <em>Now:</em> You create folders, drag files. <em>After:</em> System auto-creates folders and files everything with standard naming.</div>
+  </li>
+  <li class="step-ai"><span class="step-num">4</span>
+    <div><strong>Check QuickBooks bank feeds</strong><br>
+    <em>Now:</em> You open QBO and review. <em>After:</em> System checks automatically and flags problems. You review the flags only.</div>
+  </li>
+  <li class="step-manual"><span class="step-num">5</span>
+    <div><strong>Fix QuickBooks categorization rules</strong><br>
+    <em>Still manual.</em> QuickBooks doesn't allow rule editing through automation. System can detect issues, but you apply the fix.</div>
+  </li>
+  <li class="step-manual"><span class="step-num">6</span>
+    <div><strong>Reclassify transactions</strong><br>
+    <em>Still manual.</em> Bulk reclassification requires human judgment. System auto-creates the task for your team member and provides instructions.</div>
+  </li>
+  <li class="step-auto"><span class="step-num">7</span>
+    <div><strong>Download P&L and Balance Sheet</strong><br>
+    <em>Now:</em> You run reports in QBO, set dates, export. <em>After:</em> System auto-pulls for the right date ranges and saves to Drive.</div>
+  </li>
+  <li class="step-ai"><span class="step-num">8</span>
+    <div><strong>Calculate estimated tax payments</strong><br>
+    <em>Now:</em> You copy a ProConnect return, plug in numbers, calculate. <em>After:</em> System auto-populates a tax calculator from the financials. You review and apply your judgment on projections.</div>
+  </li>
+  <li class="step-auto"><span class="step-num">9</span>
+    <div><strong>Enter W-2 withholding from pay stubs</strong><br>
+    <em>Now:</em> You read pay stubs and type numbers. <em>After:</em> Payroll data auto-populates into the tax calculator. No retyping.</div>
+  </li>
+  <li class="step-ai"><span class="step-num">10</span>
+    <div><strong>Model C-Corp tax savings</strong><br>
+    <em>Now:</em> You duplicate the return, remove C-Corp, compare. <em>After:</em> System runs both scenarios automatically. You verify the result.</div>
+  </li>
+  <li class="step-manual"><span class="step-num">11</span>
+    <div><strong>Research tax strategies</strong><br>
+    <em>Still manual.</em> This requires professional expertise — reading tax code, applying it to the client. AI can help draft research, but you validate the conclusions.</div>
+  </li>
+  <li class="step-ai"><span class="step-num">12</span>
+    <div><strong>Build client scorecard</strong><br>
+    <em>Now:</em> You pull numbers from P&L and Balance Sheet, calculate trends. <em>After:</em> System calculates all 4 metrics and writes a brief explanation. You review.</div>
+  </li>
+  <li class="step-ai"><span class="step-num">13</span>
+    <div><strong>Write meeting agenda</strong><br>
+    <em>Now:</em> You write talking points from scratch. <em>After:</em> System drafts the full agenda from all collected data. You customize and add your personal insights.</div>
+  </li>
+  <li class="step-auto"><span class="step-num">14</span>
+    <div><strong>Assign tasks to team members</strong><br>
+    <em>Now:</em> You message Keto or create tasks manually. <em>After:</em> System auto-creates tasks in ClickUp/Karbon with context.</div>
+  </li>
+</ul>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2>3. Time Savings</h2>
+
+<div class="impact-grid">
+  <div class="impact-card">
+    <div class="number">~90 min</div>
+    <div class="label">Current prep time per client</div>
+  </div>
+  <div class="impact-card">
+    <div class="number">~20 min</div>
+    <div class="label">After automation (review only)</div>
+  </div>
+  <div class="impact-card">
+    <div class="number">~70 min</div>
+    <div class="label">Saved per client per quarter</div>
+  </div>
+  <div class="impact-card">
+    <div class="number">$0</div>
+    <div class="label">New software costs</div>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Step</th>
+      <th>Before</th>
+      <th>After</th>
+      <th>Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>1. Check Karbon</td><td>5 min</td><td>0 min</td><td><span class="badge badge-auto">Auto</span></td></tr>
+    <tr><td>2. Download payroll</td><td>5 min</td><td>0 min</td><td><span class="badge badge-auto">Auto</span></td></tr>
+    <tr><td>3. File documents</td><td>3 min</td><td>0 min</td><td><span class="badge badge-auto">Auto</span></td></tr>
+    <tr><td>4. Check bank feeds</td><td>5 min</td><td>1 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
+    <tr><td>5. Fix QBO rules</td><td>5 min</td><td>3 min</td><td><span class="badge badge-manual">Manual</span></td></tr>
+    <tr><td>6. Reclassify transactions</td><td>10 min</td><td>8 min</td><td><span class="badge badge-manual">Manual</span></td></tr>
+    <tr><td>7. Download financials</td><td>5 min</td><td>0 min</td><td><span class="badge badge-auto">Auto</span></td></tr>
+    <tr><td>8. Tax estimation</td><td>15 min</td><td>3 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
+    <tr><td>9. W-2 withholding</td><td>5 min</td><td>0 min</td><td><span class="badge badge-auto">Auto</span></td></tr>
+    <tr><td>10. Entity comparison</td><td>10 min</td><td>2 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
+    <tr><td>11. Tax research</td><td>15 min</td><td>12 min</td><td><span class="badge badge-manual">Manual</span></td></tr>
+    <tr><td>12. Scorecard</td><td>10 min</td><td>2 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
+    <tr><td>13. Meeting agenda</td><td>5 min</td><td>2 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
+    <tr><td>14. Delegate tasks</td><td>3 min</td><td>0 min</td><td><span class="badge badge-auto">Auto</span></td></tr>
+    <tr style="font-weight:600; background:#EBF8FF">
+      <td>TOTAL</td><td>~101 min</td><td>~33 min</td><td></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2>4. How It Works — The Smart Routing</h2>
+
+<p>Not every client has the same setup. Some give us QuickBooks access, some don't. Some use Rippling for payroll, others have nothing. The system adapts automatically based on a <strong>Client Profile</strong> — a simple spreadsheet where we record what access we have for each client.</p>
+
+<div class="mermaid-container">
+<pre class="mermaid">
+flowchart TD
+    A["📅 Meeting Detected\non Calendar"] --> B["📋 Look Up Client\nProfile"]
+
+    B --> C{"Do we have\nQuickBooks access?"}
+    C -->|"Yes"| D["✅ Auto-pull\nP&L and Balance Sheet"]
+    C -->|"No"| E["📧 Send email\nto client/bookkeeper\nrequesting reports"]
+
+    B --> F{"Do we have\npayroll access?"}
+    F -->|"Yes"| G["✅ Auto-pull\npay stubs & withholding"]
+    F -->|"No payroll system"| H["⏭ Skip — owner takes\ndistributions only"]
+    F -->|"No access"| I["📧 Send email\nrequesting pay stubs"]
+
+    D --> J["🧮 Calculate Taxes\n& Build Scorecard"]
+    E --> K["⏳ Wait for docs\n(resume when uploaded)"]
+    G --> J
+    H --> J
+    I --> K
+    K --> J
+
+    J --> L["📄 Generate Agenda\n& Meeting Docs"]
+    L --> M["📧 Notify You:\nPrep is Ready"]
+    M --> N["👤 You Review\n(15-20 min)"]
+
+    style D fill:#48BB78,color:#fff,stroke:none
+    style G fill:#48BB78,color:#fff,stroke:none
+    style H fill:#A0AEC0,color:#fff,stroke:none
+    style E fill:#ED8936,color:#fff,stroke:none
+    style I fill:#ED8936,color:#fff,stroke:none
+    style J fill:#9F7AEA,color:#fff,stroke:none
+    style L fill:#9F7AEA,color:#fff,stroke:none
+    style M fill:#4299E1,color:#fff,stroke:none
+    style N fill:#FC8181,color:#fff,stroke:none
+</pre>
+</div>
+
+<div class="callout">
+  <div class="callout-title">Key Point</div>
+  <p>Even for clients where we have <em>zero</em> software access, the system still saves time. It sends the document request emails automatically, and once someone uploads the files, all the downstream work (scorecard, tax calcs, agenda) fires automatically.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2>5. What You Get Before Every Meeting</h2>
+
+<p>24-48 hours before any quarterly meeting, you receive an email with links to a complete prep package:</p>
+
+<div class="mermaid-container">
+<pre class="mermaid">
+flowchart TD
+    A["📦 Meeting Prep Package"] --> B["📊 Client Scorecard"]
+    A --> C["🧮 Tax Calculator"]
+    A --> D["📋 Meeting Agenda"]
+    A --> E["✅ Task List"]
+    A --> F["⚠️ Flags"]
+
+    B --> B1["Revenue: up/down vs last year\nProfit margin trend\nOwner take-home\n+ plain-English explanation"]
+    C --> C1["Quarterly payment amounts\nFederal + State + PTE\nEntity comparison if applicable\nAI validation notes"]
+    D --> D1["Quick Win to highlight\nScorecard summary\nPayment due dates\nNext 90 days plan\nOpen items"]
+    E --> E1["Tasks auto-created in ClickUp\nfor your team members"]
+    F --> F1["Data gaps or missing info\nUnusual numbers flagged\nItems needing your judgment"]
+
+    style A fill:#2D3748,color:#fff,stroke:none
+    style B fill:#48BB78,color:#fff,stroke:none
+    style C fill:#4299E1,color:#fff,stroke:none
+    style D fill:#9F7AEA,color:#fff,stroke:none
+    style E fill:#ED8936,color:#fff,stroke:none
+    style F fill:#FC8181,color:#fff,stroke:none
+</pre>
+</div>
+
+<h3>Your Scorecard Format</h3>
+<table>
+  <thead>
+    <tr><th style="width:25%">Revenue</th><th style="width:25%">Owner Take-Home</th><th style="width:25%">Profit Margin</th><th style="width:25%">Tax Savings</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align:center; font-size:20px; font-weight:700; color:#2b6cb0;">$XXX,XXX</td>
+      <td style="text-align:center; font-size:20px; font-weight:700; color:#2b6cb0;">$XX,XXX</td>
+      <td style="text-align:center; font-size:20px; font-weight:700; color:#2b6cb0;">XX.X%</td>
+      <td style="text-align:center; font-size:20px; font-weight:700; color:#2b6cb0;">$X,XXX</td>
+    </tr>
+    <tr>
+      <td style="text-align:center; color:#718096;">▲ XX% vs prior year</td>
+      <td style="text-align:center; color:#718096;">▲ XX% vs prior year</td>
+      <td style="text-align:center; color:#718096;">▼ X.X% vs prior year</td>
+      <td style="text-align:center; color:#718096;">from entity strategy</td>
+    </tr>
+  </tbody>
+</table>
+<p style="font-style:italic; color:#718096; font-size:13px;">Plus a 2-3 sentence AI-written narrative explaining the numbers in plain language — which you review and customize before the meeting.</p>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2>6. The Tax Calculation Engine</h2>
+
+<p>The system builds a tax estimate automatically from the financial data it collects. Here's the logic it follows:</p>
+
+<div class="mermaid-container">
+<pre class="mermaid">
+flowchart TD
+    A["Financial Data\n(from QuickBooks)"] --> B["Project Annual Income\n= YTD ÷ months × 12"]
+
+    C["Payroll Data\n(from Rippling)"] --> D["Owner W-2 Salary\n+ Withholdings"]
+
+    B --> E["Net Profit\n= Income − Expenses"]
+    E --> F["Pass-Through to Owner\n= Net Profit × ownership %"]
+
+    F --> G["Total Taxable Income\n= Pass-through + W-2 + Other"]
+    D --> G
+
+    G --> H["Federal Tax\n(marginal brackets)"]
+    G --> I["State Tax\n(CA, NY, etc.)"]
+
+    H --> J["Subtract\nWithholdings & Credits"]
+    I --> J
+
+    J --> K["Net Amount Due\n÷ by quarterly schedule"]
+
+    K --> L["💰 Quarterly Payment\nAmounts for Client"]
+
+    M{"Does client have\na C-Corp?"} -->|"Yes"| N["Run Scenario A:\nWith C-Corp\nvs.\nScenario B:\nWithout C-Corp"]
+    N --> O["💡 Tax Savings\n= Difference"]
+
+    style L fill:#48BB78,color:#fff,stroke:none
+    style O fill:#48BB78,color:#fff,stroke:none
+</pre>
+</div>
+
+<div class="callout">
+  <div class="callout-title">Your Judgment Still Matters</div>
+  <p>The system fills in the numbers, but <strong>you</strong> still review the projections. For example, when a client's income "started late" and you decide to use 50% instead of 40% as the projection factor — that's professional judgment the system can't replace. It flags these decisions for you instead of guessing.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2>7. After the Meeting — Automatic Follow-Up</h2>
+
+<p>Once the client meeting is over, Fathom generates the transcript. The system picks it up and:</p>
+
+<div class="mermaid-container">
+<pre class="mermaid">
+flowchart LR
+    A["🤝 Meeting\nEnds"] --> B["🎙 Fathom\nTranscript"]
+    B --> C["🤖 AI Reads\nTranscript"]
+    C --> D["Extracts\nAction Items"]
+    D --> E["✅ Creates Tasks\nin ClickUp"]
+    D --> F["📧 Drafts Follow-Up\nEmail to Client"]
+    E --> G["📋 Updates\nKarbon"]
+    F --> G
+
+    style A fill:#FC8181,color:#fff,stroke:none
+    style B fill:#4299E1,color:#fff,stroke:none
+    style C fill:#ED8936,color:#fff,stroke:none
+    style E fill:#48BB78,color:#fff,stroke:none
+    style F fill:#48BB78,color:#fff,stroke:none
+    style G fill:#48BB78,color:#fff,stroke:none
+</pre>
+</div>
+
+<p>You review the drafted follow-up email before it's sent, and verify the tasks are assigned to the right people.</p>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2>8. What's Automated vs. What Stays with You</h2>
+
+<div class="mermaid-container">
+<pre class="mermaid">
+pie title How the 14 Steps Break Down
+    "Fully Automated (6 steps)" : 6
+    "AI-Assisted — You Review (5 steps)" : 5
+    "Stays Manual (3 steps)" : 3
+</pre>
+</div>
+
+<h3>Fully Automated — No Touch Needed</h3>
+<table>
+  <thead><tr><th>Step</th><th>What the System Does</th></tr></thead>
+  <tbody>
+    <tr><td>Pull Karbon items</td><td>Retrieves all open tasks and recent client communications</td></tr>
+    <tr><td>Download payroll</td><td>Pulls pay stubs and withholding data from Rippling/Gusto (or sends request email)</td></tr>
+    <tr><td>Organize files</td><td>Creates quarter folders in Google Drive, saves everything with consistent names</td></tr>
+    <tr><td>Download financials</td><td>Pulls P&L and Balance Sheet from QuickBooks (or sends request email)</td></tr>
+    <tr><td>Populate W-2 data</td><td>Feeds payroll withholding numbers into the tax calculator automatically</td></tr>
+    <tr><td>Create team tasks</td><td>Auto-creates ClickUp tasks for anything needing team action</td></tr>
+  </tbody>
+</table>
+
+<h3>AI Does the Heavy Lifting — You Review and Approve</h3>
+<table>
+  <thead><tr><th>Step</th><th>What AI Does</th><th>What You Do</th></tr></thead>
+  <tbody>
+    <tr><td>Bank feed check</td><td>Flags sync issues, categorization problems</td><td>Investigate flagged items</td></tr>
+    <tr><td>Tax estimation</td><td>Populates calculator, runs projections</td><td>Review projections, adjust judgment calls</td></tr>
+    <tr><td>Entity comparison</td><td>Calculates "with vs. without" C-Corp scenarios</td><td>Verify the assumptions are right</td></tr>
+    <tr><td>Client scorecard</td><td>Calculates all 4 metrics, writes explanation</td><td>Review the narrative, tweak wording</td></tr>
+    <tr><td>Meeting agenda</td><td>Drafts full agenda from all collected data</td><td>Customize, add personal insights</td></tr>
+  </tbody>
+</table>
+
+<h3>Stays Manual — Requires Your Expertise</h3>
+<table>
+  <thead><tr><th>Step</th><th>Why It Can't Be Automated</th></tr></thead>
+  <tbody>
+    <tr><td>Fix QBO rules</td><td>QuickBooks doesn't allow editing categorization rules through its software connection — must be done in the QuickBooks interface</td></tr>
+    <tr><td>Reclassify transactions</td><td>Requires professional judgment about correct categories; system creates the task and instructions for your team</td></tr>
+    <tr><td>Tax strategy research</td><td>Reading tax code, applying it to specific client situations, and making professional recommendations — this is your core value and expertise</td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2>9. Software Used (All Already in Our Stack)</h2>
+
+<div class="software-grid">
+  <div class="sw-item"><strong>n8n</strong><br><span>Runs all the automation workflows</span></div>
+  <div class="sw-item"><strong>Google Calendar</strong><br><span>Triggers the prep 24-48 hrs before meetings</span></div>
+  <div class="sw-item"><strong>Google Sheets</strong><br><span>Tax calculators, scorecard, client profiles</span></div>
+  <div class="sw-item"><strong>Google Docs / Slides</strong><br><span>Meeting agendas and presentations</span></div>
+  <div class="sw-item"><strong>Google Drive</strong><br><span>Document storage and file intake detection</span></div>
+  <div class="sw-item"><strong>Gmail</strong><br><span>Sends document request emails to clients</span></div>
+  <div class="sw-item"><strong>QuickBooks Online</strong><br><span>Pulls P&L, Balance Sheet, bank feed data</span></div>
+  <div class="sw-item"><strong>Xero</strong><br><span>Alternative to QBO for some clients</span></div>
+  <div class="sw-item"><strong>Rippling / Gusto</strong><br><span>Pulls payroll and withholding data</span></div>
+  <div class="sw-item"><strong>Karbon</strong><br><span>Pulls pending items, updates work status</span></div>
+  <div class="sw-item"><strong>ClickUp</strong><br><span>Auto-creates tasks for team members</span></div>
+  <div class="sw-item"><strong>GoHighLevel</strong><br><span>Sends templated client emails</span></div>
+  <div class="sw-item"><strong>Claude AI</strong><br><span>Parses data, validates calculations, writes agendas</span></div>
+  <div class="sw-item"><strong>Fathom</strong><br><span>Meeting transcription and action item extraction</span></div>
+  <div class="sw-item"><strong>Scribe</strong><br><span>Documents manual steps for team reference</span></div>
+  <div class="sw-item"><strong>NotebookLM</strong><br><span>Tax research validation (manual tool)</span></div>
+</div>
+
+<p><strong>New software required: None.</strong> The entire system runs on tools we already pay for.</p>
+
+<!-- ============================================================ -->
+<h2>10. Implementation Timeline</h2>
+
+<p>The system will be built in phases over approximately 9 weeks:</p>
+
+<div class="timeline-item">
+  <div class="week">Weeks 1-2</div>
+  <div class="title">Foundation</div>
+  <div class="desc">Set up the Client Profile spreadsheet. Create email templates. Build folder structure.</div>
+</div>
+
+<div class="timeline-item">
+  <div class="week">Weeks 3-4</div>
+  <div class="title">Data Collection Workflows</div>
+  <div class="desc">Auto-pull from QuickBooks, Xero, Rippling. Auto-send document requests when no access. Set up file intake detection.</div>
+</div>
+
+<div class="timeline-item">
+  <div class="week">Weeks 5-6</div>
+  <div class="title">Tax Calculations & Scorecard</div>
+  <div class="desc">Build the tax estimation templates for each entity type. Build the scorecard generator. Connect AI for validation and narrative writing.</div>
+</div>
+
+<div class="timeline-item">
+  <div class="week">Weeks 6-7</div>
+  <div class="title">Meeting Output</div>
+  <div class="desc">Agenda generator. Presentation slides template. Task auto-creation. Notification system.</div>
+</div>
+
+<div class="timeline-item">
+  <div class="week">Weeks 7-8</div>
+  <div class="title">Post-Meeting Automation</div>
+  <div class="desc">Connect Fathom for transcript processing. Auto-extract action items. Auto-create follow-up tasks.</div>
+</div>
+
+<div class="timeline-item">
+  <div class="week">Weeks 8-10</div>
+  <div class="title">Testing & Go-Live</div>
+  <div class="desc">Test with real clients. Fix any issues. Training. Support period.</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2>11. What Your Day Looks Like After This</h2>
+
+<h3>Before (Today)</h3>
+<table>
+  <thead><tr><th>Time</th><th>Activity</th></tr></thead>
+  <tbody>
+    <tr><td>8:00 AM</td><td>Open Karbon, review pending items, click through communications</td></tr>
+    <tr><td>8:05 AM</td><td>Log into Rippling, download pay stubs, create folder, file them</td></tr>
+    <tr><td>8:15 AM</td><td>Open QBO, check bank feeds, fix rules, try to reclassify transactions</td></tr>
+    <tr><td>8:35 AM</td><td>Download P&L and Balance Sheet, set date ranges</td></tr>
+    <tr><td>8:40 AM</td><td>Copy tax return in ProConnect, plug in numbers, calculate quarterly payments</td></tr>
+    <tr><td>8:55 AM</td><td>Enter W-2 withholding from pay stubs into the model</td></tr>
+    <tr><td>9:00 AM</td><td>Duplicate return again to model C-Corp savings comparison</td></tr>
+    <tr><td>9:10 AM</td><td>Research tax strategies in Gemini, NotebookLM</td></tr>
+    <tr><td>9:25 AM</td><td>Build scorecard, calculate trends manually</td></tr>
+    <tr><td>9:35 AM</td><td>Write meeting agenda and talking points</td></tr>
+    <tr><td>9:40 AM</td><td>Message team about reclassification and other tasks</td></tr>
+    <tr><td style="font-weight:600">~9:45 AM</td><td style="font-weight:600">Done — about 90 minutes of prep</td></tr>
+  </tbody>
+</table>
+
+<h3>After (With Automation)</h3>
+<table>
+  <thead><tr><th>Time</th><th>Activity</th></tr></thead>
+  <tbody>
+    <tr><td>8:00 AM</td><td>Open email — prep package is already waiting for you</td></tr>
+    <tr><td>8:02 AM</td><td>Review scorecard and tax estimates (numbers look right?)</td></tr>
+    <tr><td>8:08 AM</td><td>Review agenda draft, add your personal talking points</td></tr>
+    <tr><td>8:12 AM</td><td>Check flags — any issues that need attention before the meeting?</td></tr>
+    <tr><td>8:15 AM</td><td>Quick look at the research items that need your judgment</td></tr>
+    <tr><td style="font-weight:600">~8:20 AM</td><td style="font-weight:600">Done — about 20 minutes, all review</td></tr>
+  </tbody>
+</table>
+
+<div class="summary-box">
+  <p><strong>The bottom line:</strong> You spend your time on what matters — reviewing numbers, applying professional judgment, and preparing your advisory insights for the client. The system handles all the data gathering, number crunching, and document assembly.</p>
+  <p>Your expertise is the part clients pay for. The automation just removes the busywork so you can focus on it.</p>
+</div>
+
+<div class="footer">
+  <p>Confidential — Prepared for internal review only</p>
+  <p>To save as PDF: Open this file in a browser → File → Print → Save as PDF</p>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#4299E1',
+      primaryTextColor: '#fff',
+      primaryBorderColor: '#3182CE',
+      lineColor: '#A0AEC0',
+      secondaryColor: '#48BB78',
+      tertiaryColor: '#f7fafc',
+      fontFamily: 'Inter, sans-serif',
+      fontSize: '13px'
+    },
+    flowchart: {
+      htmlLabels: true,
+      curve: 'basis',
+      nodeSpacing: 30,
+      rankSpacing: 40
+    }
+  });
+</script>
+
+</body>
+</html>
