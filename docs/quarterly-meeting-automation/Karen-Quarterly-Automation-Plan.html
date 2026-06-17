@@ -352,7 +352,7 @@ flowchart LR
   </li>
   <li class="step-auto"><span class="step-num">2</span>
     <div><strong>Download payroll / pay stubs</strong><br>
-    <em>Now:</em> You log into Rippling, find each person, download. <em>After:</em> System auto-pulls from Rippling (or sends an email request if no access).</div>
+    <em>Now:</em> You log into the payroll software, find each person, download. <em>After:</em> System auto-pulls from the payroll software (or sends an email request if no access).</div>
   </li>
   <li class="step-auto"><span class="step-num">3</span>
     <div><strong>Organize documents into client folders</strong><br>
@@ -460,7 +460,7 @@ flowchart LR
 <!-- ============================================================ -->
 <h2>4. How It Works — The Smart Routing</h2>
 
-<p>Not every client has the same setup. Some give us QuickBooks access, some don't. Some use Rippling for payroll, others have nothing. The system adapts automatically based on a <strong>Client Profile</strong> — a simple spreadsheet where we record what access we have for each client.</p>
+<p>Not every client has the same setup. Some give us QuickBooks access, some don't. Some use payroll software (like Gusto, Rippling, ADP), others have nothing. The system adapts automatically based on a <strong>Client Profile</strong> — a simple spreadsheet where we record what access we have for each client.</p>
 
 <div class="mermaid-container">
 <pre class="mermaid">
@@ -567,7 +567,7 @@ flowchart TD
 flowchart TD
     A["Financial Data\n(from QuickBooks)"] --> B["Project Annual Income\n= YTD ÷ months × 12"]
 
-    C["Payroll Data\n(from Rippling)"] --> D["Owner W-2 Salary\n+ Withholdings"]
+    C["Payroll Data\n(from Payroll Software)"] --> D["Owner W-2 Salary\n+ Withholdings"]
 
     B --> E["Net Profit\n= Income − Expenses"]
     E --> F["Pass-Through to Owner\n= Net Profit × ownership %"]
@@ -643,7 +643,7 @@ pie title How the 14 Steps Break Down
   <thead><tr><th>Step</th><th>What the System Does</th></tr></thead>
   <tbody>
     <tr><td>Pull Karbon items</td><td>Retrieves all open tasks and recent client communications</td></tr>
-    <tr><td>Download payroll</td><td>Pulls pay stubs and withholding data from Rippling/Gusto (or sends request email)</td></tr>
+    <tr><td>Download payroll</td><td>Pulls pay stubs and withholding data from the payroll software (or sends request email)</td></tr>
     <tr><td>Organize files</td><td>Creates quarter folders in Google Drive, saves everything with consistent names</td></tr>
     <tr><td>Download financials</td><td>Pulls P&L and Balance Sheet from QuickBooks (or sends request email)</td></tr>
     <tr><td>Populate W-2 data</td><td>Feeds payroll withholding numbers into the tax calculator automatically</td></tr>
@@ -686,7 +686,7 @@ pie title How the 14 Steps Break Down
   <div class="sw-item"><strong>Gmail</strong><br><span>Sends document request emails to clients</span></div>
   <div class="sw-item"><strong>QuickBooks Online</strong><br><span>Pulls P&L, Balance Sheet, bank feed data</span></div>
   <div class="sw-item"><strong>Xero</strong><br><span>Alternative to QBO for some clients</span></div>
-  <div class="sw-item"><strong>Rippling / Gusto</strong><br><span>Pulls payroll and withholding data</span></div>
+  <div class="sw-item"><strong>Payroll Software</strong><br><span>Pulls payroll and withholding data (Gusto, Rippling, ADP, etc.)</span></div>
   <div class="sw-item"><strong>Karbon</strong><br><span>Pulls pending items, updates work status</span></div>
   <div class="sw-item"><strong>ClickUp</strong><br><span>Auto-creates tasks for team members</span></div>
   <div class="sw-item"><strong>GoHighLevel</strong><br><span>Sends templated client emails</span></div>
@@ -712,7 +712,7 @@ pie title How the 14 Steps Break Down
 <div class="timeline-item">
   <div class="week">Weeks 3-4</div>
   <div class="title">Data Collection Workflows</div>
-  <div class="desc">Auto-pull from QuickBooks, Xero, Rippling. Auto-send document requests when no access. Set up file intake detection.</div>
+  <div class="desc">Auto-pull from QuickBooks, Xero, and payroll software. Auto-send document requests when no access. Set up file intake detection.</div>
 </div>
 
 <div class="timeline-item">
@@ -748,7 +748,7 @@ pie title How the 14 Steps Break Down
   <thead><tr><th>Time</th><th>Activity</th></tr></thead>
   <tbody>
     <tr><td>8:00 AM</td><td>Open Karbon, review pending items, click through communications</td></tr>
-    <tr><td>8:05 AM</td><td>Log into Rippling, download pay stubs, create folder, file them</td></tr>
+    <tr><td>8:05 AM</td><td>Log into payroll software, download pay stubs, create folder, file them</td></tr>
     <tr><td>8:15 AM</td><td>Open QBO, check bank feeds, fix rules, try to reclassify transactions</td></tr>
     <tr><td>8:35 AM</td><td>Download P&L and Balance Sheet, set date ranges</td></tr>
     <tr><td>8:40 AM</td><td>Copy tax return in ProConnect, plug in numbers, calculate quarterly payments</td></tr>
