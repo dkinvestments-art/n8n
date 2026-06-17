@@ -76,7 +76,7 @@ for a quarterly meeting with client "Candace":
 
 ```mermaid
 flowchart TD
-    S1[1. Open Karbon<br/>Review pending items<br/>⏱ 5 min] --> S2[2. Log into Rippling<br/>Download pay stubs<br/>⏱ 5 min]
+    S1[1. Open Karbon<br/>Review pending items<br/>⏱ 5 min] --> S2[2. Download pay stubs<br/>from payroll software<br/>Manual<br/>⏱ 5 min]
     S2 --> S3[3. Create folders in Drive<br/>File payroll docs<br/>⏱ 3 min]
     S3 --> S4[4. Open QBO<br/>Check bank feeds<br/>⏱ 5 min]
     S4 --> S5[5. Fix QBO rules<br/>Edit categorization<br/>⏱ 5 min]
@@ -91,14 +91,14 @@ flowchart TD
     S13 --> S14[14. Delegate tasks<br/>to team<br/>⏱ 3 min]
 
     style S1 fill:#4CAF50,color:#fff
-    style S2 fill:#4CAF50,color:#fff
+    style S2 fill:#F44336,color:#fff
     style S3 fill:#4CAF50,color:#fff
     style S4 fill:#2196F3,color:#fff
-    style S5 fill:#FF9800,color:#fff
+    style S5 fill:#F44336,color:#fff
     style S6 fill:#F44336,color:#fff
     style S7 fill:#4CAF50,color:#fff
     style S8 fill:#FF9800,color:#fff
-    style S9 fill:#4CAF50,color:#fff
+    style S9 fill:#FF9800,color:#fff
     style S10 fill:#FF9800,color:#fff
     style S11 fill:#F44336,color:#fff
     style S12 fill:#FF9800,color:#fff
@@ -117,24 +117,25 @@ flowchart TD
 | Step | Current Time | After Automation | Savings |
 |------|-------------|-----------------|---------|
 | 1. Review Karbon pending items | 5 min | 0 min (auto-pulled) | 5 min |
-| 2. Download payroll | 5 min | 0 min (auto-pulled or auto-requested) | 5 min |
+| 2. Download payroll | 5 min | ~5 min (Manual: team downloads + uploads pay stubs) | 0 min |
 | 3. File documents | 3 min | 0 min (auto-filed) | 3 min |
 | 4. Check QBO bank feeds | 5 min | 1 min (review auto-generated health report) | 4 min |
 | 5. Fix QBO rules | 5 min | 3 min (AI suggests, human applies) | 2 min |
 | 6. Mass reclassify transactions | 10 min | 8 min (still mostly manual, delegation automated) | 2 min |
 | 7. Download financials | 5 min | 0 min (auto-pulled or auto-requested) | 5 min |
 | 8. Model estimated taxes | 15 min | 3 min (review auto-populated template) | 12 min |
-| 9. Enter W-2 withholding | 5 min | 0 min (auto-populated from payroll data) | 5 min |
+| 9. Enter W-2 withholding | 5 min | ~1 min (AI reads uploaded pay stub + review) | 4 min |
 | 10. Model entity savings | 10 min | 2 min (review auto-calculated comparison) | 8 min |
 | 11. Research tax strategies | 15 min | 12 min (AI drafts, human validates) | 3 min |
 | 12. Build scorecard | 10 min | 2 min (review auto-generated scorecard) | 8 min |
 | 13. Write meeting agenda | 5 min | 2 min (review AI-drafted agenda) | 3 min |
-| 14. Delegate tasks | 3 min | 0 min (auto-created in ClickUp/Karbon) | 3 min |
-| **TOTAL** | **~101 min** | **~33 min** | **~68 min** |
+| 14. Delegate tasks | 3 min | 0 min (auto-created in Karbon) | 3 min |
+| **TOTAL** | **~101 min** | **~39 min** | **~62 min** |
 
 **Notes:**
-- "After Automation" times assume the client has API access (best case)
-- For non-API clients, add ~10 min for document collection wait time
+- "After Automation" times assume the client has API access to accounting (best case)
+- Payroll is collected manually (team downloads and uploads pay stubs); the AI then parses the uploaded stub
+- For non-API accounting clients, add ~10 min for document collection wait time
 - Human review time cannot be eliminated — it ensures accuracy
 
 ---
@@ -176,7 +177,7 @@ flowchart TD
     subgraph COLLECTION["DATA COLLECTION LAYER"]
         KARBON[Karbon<br/>Pending Items]
         QBO[QBO / Xero<br/>Financial Reports]
-        PAYROLL[Rippling / Gusto<br/>Payroll Data]
+        PAYROLL[Payroll Software<br/>Manual pay stub<br/>download + upload]
         EMAIL[GoHighLevel / Gmail<br/>Document Requests]
         INTAKE[Google Drive<br/>Document Intake]
     end
@@ -193,7 +194,7 @@ flowchart TD
         GDOC[Google Docs<br/>Meeting Agenda]
         GSHEET[Google Sheets<br/>Tax Calculator<br/>Scorecard]
         GSLIDE[Google Slides<br/>Client Presentation]
-        CLICKUP[ClickUp<br/>Task Creation]
+        KARBON_WI[Karbon<br/>Work Item Creation]
         NOTIFY[Email<br/>Notification]
     end
 
@@ -205,12 +206,12 @@ flowchart TD
     BRANCH --> QBO
     BRANCH --> PAYROLL
     BRANCH --> EMAIL
+    PAYROLL --> INTAKE
     INTAKE --> PARSE
     KARBON --> CLAUDE
     QBO --> CALC
-    PAYROLL --> CALC
     PARSE --> CALC
-    EMAIL --> CLICKUP
+    EMAIL --> KARBON_WI
     CALC --> SCORE
     CALC --> CLAUDE
     SCORE --> CLAUDE
@@ -219,11 +220,11 @@ flowchart TD
     AGENDA --> GSLIDE
     SCORE --> GSHEET
     CALC --> GSHEET
-    CLAUDE --> CLICKUP
+    CLAUDE --> KARBON_WI
     GDOC --> NOTIFY
     GSHEET --> NOTIFY
     GSLIDE --> NOTIFY
-    CLICKUP --> NOTIFY
+    KARBON_WI --> NOTIFY
 ```
 
 ---
@@ -361,7 +362,7 @@ flowchart TD
 
     subgraph MANUAL_PATH["MANUAL INSTRUCTIONS PATH"]
         INSTRUCT[Generate Scribe-linked<br/>pull instructions for team]
-        INSTRUCT --> TASK[Create ClickUp task<br/>Assigned to team member<br/>Due 3 days before meeting]
+        INSTRUCT --> TASK[Create Karbon work item<br/>Assigned to team member<br/>Due 3 days before meeting]
     end
 
     CHECK -->|No_Access| REQUEST_PATH
@@ -370,7 +371,7 @@ flowchart TD
         RECIPIENT{bookkeeper_email<br/>exists?}
         RECIPIENT -->|Yes| BK_EMAIL[Send template email<br/>to bookkeeper]
         RECIPIENT -->|No| CL_EMAIL[Send template email<br/>to client]
-        BK_EMAIL --> REQ_TASK[Create ClickUp task<br/>Awaiting docs from client]
+        BK_EMAIL --> REQ_TASK[Create Karbon work item<br/>Awaiting docs from client]
         CL_EMAIL --> REQ_TASK
         REQ_TASK --> WATCH[Set up Drive<br/>folder watch trigger]
     end
@@ -397,39 +398,27 @@ flowchart TD
 
 ### 5.3 Sub-Workflow 3: Payroll Data Collection
 
+Payroll is collected **manually** — the firm does not connect via API to
+client payroll dashboards. When a client has payroll, the team/admin
+downloads the pay stubs from the client's payroll software and uploads them
+to the client's Google Drive folder. The existing document-intake mechanism
+(Claude AI parsing the uploaded pay stub PDF) then extracts the withholding
+numbers and feeds the tax calculator. When there is no payroll system, the
+step is skipped and the client is treated as distributions-only.
+
 ```mermaid
 flowchart TD
-    IN([Receive client profile]) --> CHECK{payroll_access?}
+    IN([Receive client profile]) --> CHECK{has_payroll?}
 
-    CHECK -->|API| API_PATH
+    CHECK -->|Yes| MANUAL_PATH
 
-    subgraph API_PATH["API PATH"]
-        PS{payroll_system?}
-        PS -->|Rippling| RIP[Auth to Rippling API]
-        PS -->|Gusto| GUS[Auth to Gusto API]
-        PS -->|ADP| ADP_A[Auth to ADP API]
-
-        RIP --> PULL[Pull YTD payroll<br/>for each owner]
-        GUS --> PULL
-        ADP_A --> PULL
-
-        PULL --> EXTRACT[Extract per employee:<br/>Gross pay<br/>Federal withholding<br/>State withholding<br/>Health insurance<br/>Retirement contributions]
-
+    subgraph MANUAL_PATH["MANUAL PAYROLL PATH (no API)"]
+        TASK1[Create Karbon work item<br/>Team downloads pay stubs<br/>from payroll software]
+        TASK1 --> UPLOAD[Team uploads pay stubs<br/>to client Google Drive folder]
+        UPLOAD --> WATCH[Drive folder watch<br/>detects uploaded stubs]
+        WATCH --> PARSE[Claude AI parses<br/>uploaded pay stub PDF]
+        PARSE --> EXTRACT[Extract per employee:<br/>Gross pay<br/>Federal withholding<br/>State withholding<br/>Health insurance<br/>Retirement contributions]
         EXTRACT --> ANNUALIZE[Annualize projections<br/>YTD / months * 12]
-        ANNUALIZE --> SAVE[Save pay stubs<br/>to Google Drive]
-    end
-
-    CHECK -->|Portal_Login| MANUAL[Generate pull<br/>instructions for team]
-    MANUAL --> TASK1[Create ClickUp task]
-
-    CHECK -->|No_Access| REQ
-
-    subgraph REQ["REQUEST PATH"]
-        HAS_CONTACT{payroll_contact_email<br/>exists?}
-        HAS_CONTACT -->|Yes| CONTACT[Send request email<br/>to payroll contact]
-        HAS_CONTACT -->|No| CLIENT[Send request email<br/>to client]
-        CONTACT --> TASK2[Create ClickUp task<br/>Awaiting payroll docs]
-        CLIENT --> TASK2
     end
 
     CHECK -->|None / Skip| NODIST
@@ -441,9 +430,7 @@ flowchart TD
         DIST -->|No| MANUAL_DIST[Flag for manual<br/>review of distributions]
     end
 
-    SAVE --> OUT([Return payroll<br/>data JSON])
-    TASK1 --> OUT2([Return manual<br/>task flag])
-    TASK2 --> OUT3([Return awaiting<br/>docs flag])
+    ANNUALIZE --> OUT([Return payroll<br/>data JSON])
     PULL_DIST --> OUT4([Return distribution<br/>data only])
     MANUAL_DIST --> OUT5([Return flag for<br/>manual review])
 ```
@@ -611,12 +598,12 @@ flowchart TD
         CLIENT_A[Client Actions<br/>Upload documents<br/>Sign forms<br/>Make payments]
     end
 
-    ADMIN --> CLICKUP_ADMIN[Create ClickUp task<br/>Assign to admin team<br/>Due 2 days before meeting]
-    REVIEW --> CLICKUP_REVIEW[Create ClickUp task<br/>Assign to preparer<br/>Due 1 day before meeting]
+    ADMIN --> KARBON_ADMIN[Create Karbon work item<br/>Assign to admin team<br/>Due 2 days before meeting]
+    REVIEW --> KARBON_REVIEW[Create Karbon work item<br/>Assign to preparer<br/>Due 1 day before meeting]
     CLIENT_A --> GHL[Draft email to client<br/>via GoHighLevel or Gmail<br/>List their action items]
 
-    CLICKUP_ADMIN --> KARBON_UPDATE[Update Karbon<br/>work item status]
-    CLICKUP_REVIEW --> KARBON_UPDATE
+    KARBON_ADMIN --> KARBON_UPDATE[Update Karbon<br/>work item status]
+    KARBON_REVIEW --> KARBON_UPDATE
     GHL --> KARBON_UPDATE
 
     KARBON_UPDATE --> OUT([Return task IDs<br/>and notification status])
@@ -638,10 +625,10 @@ flowchart TD
 
     EXTRACT --> SPLIT{Who owns<br/>the action?}
 
-    SPLIT -->|Firm team| CLICKUP[Create ClickUp task<br/>with context]
+    SPLIT -->|Firm team| KARBON_TASK[Create Karbon work item<br/>with context]
     SPLIT -->|Client| EMAIL_DRAFT[Draft follow-up email<br/>listing client actions]
 
-    CLICKUP --> KARBON[Update Karbon<br/>with meeting notes<br/>and next steps]
+    KARBON_TASK --> KARBON[Update Karbon<br/>with meeting notes<br/>and next steps]
     EMAIL_DRAFT --> KARBON
 
     KARBON --> PROFILE_UPDATE[Update Client Profile<br/>last_meeting_date<br/>next quarter goals]
@@ -660,7 +647,7 @@ flowchart TD
     PROFILE[(Client Profile<br/>Google Sheets)] --> READ[n8n reads<br/>profile row]
 
     READ --> B1{accounting_access}
-    READ --> B2{payroll_access}
+    READ --> B2{has_payroll}
     READ --> B3{entity_type}
     READ --> B4{state_primary}
 
@@ -668,9 +655,7 @@ flowchart TD
     B1 -->|Portal_Login| QBO_MANUAL[Generate pull<br/>instructions]
     B1 -->|No_Access| QBO_EMAIL[Send document<br/>request email]
 
-    B2 -->|API| PAY_API[Auto-pull payroll<br/>via API]
-    B2 -->|Portal_Login| PAY_MANUAL[Generate pull<br/>instructions]
-    B2 -->|No_Access| PAY_EMAIL[Send payroll<br/>request email]
+    B2 -->|Yes| PAY_MANUAL[Manual: team downloads<br/>+ uploads pay stubs<br/>AI parses uploaded stub]
     B2 -->|None| PAY_SKIP[Skip payroll<br/>distributions only]
 
     B3 -->|S-Corp| TAX_S[S-Corp tax template]
@@ -691,8 +676,8 @@ flowchart TD
 | entity_type | S-Corp + C-Corp | S-Corp | Sole Prop |
 | accounting_software | QBO | Xero | None |
 | accounting_access | API_Full | API_Full | No_Access |
-| payroll_system | Rippling | None | None |
-| payroll_access | API | N/A | N/A |
+| payroll_software | Rippling | None | None |
+| has_payroll | Yes (manual) | No | No |
 | state_primary | CA | NY | TX |
 | has_c_corp | Yes | No | No |
 | has_pte_election | Yes | Yes | No |
@@ -700,8 +685,9 @@ flowchart TD
 
 **Workflow behavior per client:**
 
-- **Client A**: Full automation — API pulls from QBO + Rippling,
-  multi-entity tax template with comparison, CA PTE calculation,
+- **Client A**: Full automation — API pull from QBO, payroll collected
+  manually (team downloads + uploads pay stubs, AI parses the uploaded
+  stub), multi-entity tax template with comparison, CA PTE calculation,
   auto-generated scorecard and agenda.
 
 - **Client B**: Partial automation — API pull from Xero (normalized
@@ -826,7 +812,7 @@ Client Meeting Prep Package
 │   ├── Tax savings visual
 │   └── Next steps summary
 │
-├── ✅ Task List (ClickUp)
+├── ✅ Task List (Karbon work items)
 │   ├── Pre-meeting prep tasks
 │   ├── Items needing team action
 │   └── Client follow-up items
@@ -848,7 +834,7 @@ flowchart LR
     MEET[Client Meeting<br/>via Zoom/Teams] --> FATHOM[Fathom records<br/>and transcribes]
     FATHOM --> N8N[n8n detects<br/>new transcript]
     N8N --> CLAUDE[Claude extracts<br/>action items]
-    CLAUDE --> TASKS[ClickUp tasks<br/>created]
+    CLAUDE --> TASKS[Karbon work items<br/>created]
     CLAUDE --> EMAIL[Client follow-up<br/>email drafted]
     TASKS --> KARBON[Karbon updated<br/>with notes]
     EMAIL --> KARBON
@@ -912,38 +898,38 @@ flowchart TD
 
 ```mermaid
 pie title Automation Coverage (14 Process Steps)
-    "Fully Automated" : 6
-    "AI-Assisted (Human Review)" : 5
-    "Manual (Cannot Automate)" : 3
+    "Fully Automated" : 4
+    "AI-Assisted (Human Review)" : 6
+    "Manual (Cannot Automate)" : 4
 ```
 
 ### 11.2 Detailed Classification
 
-#### Fully Automated (6 steps — no human touch needed)
+#### Fully Automated (4 steps — no human touch needed)
 
 | Step | What | How |
 |------|------|-----|
 | 1. Karbon pending items | Pull open work items | n8n + Karbon API |
-| 2. Payroll download | Get pay stubs and YTD data | n8n + Rippling/Gusto API |
 | 3. File organization | Create folders, save documents | n8n + Google Drive API |
 | 7. Financial report download | Pull P&L and Balance Sheet | n8n + QBO/Xero API |
-| 9. W-2 withholding entry | Populate tax template from payroll data | n8n + Google Sheets |
-| 14. Task delegation | Create ClickUp/Karbon tasks for team | n8n + ClickUp/Karbon API |
+| 14. Task delegation | Create Karbon work items for team | n8n + Karbon API |
 
-#### AI-Assisted — Human Review Required (5 steps)
+#### AI-Assisted — Human Review Required (6 steps)
 
 | Step | What | AI Does | Human Does |
 |------|------|---------|------------|
 | 4. Bank feed review | Check bank sync and categorization | Detects anomalies, flags issues | Investigates root cause |
 | 8. Tax estimation | Calculate quarterly estimated payments | Populates template, validates | Reviews projections, applies judgment |
+| 9. W-2 withholding entry | Read withholding from uploaded pay stub | Parses uploaded stub, populates tax template | Reviews extracted figures |
 | 10. Entity comparison | Model tax with vs. without C-Corp | Calculates both scenarios | Validates assumptions |
 | 12. Client scorecard | Build 4-metric performance report | Calculates metrics, writes narrative | Reviews narrative accuracy |
 | 13. Meeting agenda | Draft structured meeting agenda | Generates from all collected data | Customizes, adds personal insights |
 
-#### Manual — Cannot Automate (3 steps)
+#### Manual — Cannot Automate (4 steps)
 
 | Step | What | Why It Must Stay Manual |
 |------|------|----------------------|
+| 2. Payroll download | Download pay stubs from payroll software, upload to Drive | Firm does not connect via API to client payroll dashboards; pay stubs are downloaded and uploaded manually |
 | 5. Fix QBO rules | Edit categorization rules in QBO | QBO API doesn't support rule management |
 | 6. Mass reclassify transactions | Bulk re-categorize transactions | Requires judgment on correct categories; QBO bulk tools are limited |
 | 11. Tax strategy research | Research IRC sections, case law, strategies | Requires professional judgment, legal interpretation, client-specific application |
@@ -968,7 +954,7 @@ gantt
     section Phase 2 - Data Collection
     QBO API auto-pull workflow      :p2a, 2026-07-07, 7d
     Xero API auto-pull workflow     :p2b, 2026-07-07, 5d
-    Payroll API auto-pull workflow   :p2c, 2026-07-07, 5d
+    Manual payroll upload + AI parse :p2c, 2026-07-07, 5d
     Document request email workflow  :p2d, 2026-07-10, 3d
     Drive file watch + intake        :p2e, 2026-07-14, 5d
     Karbon pending items pull        :p2f, 2026-07-07, 3d
@@ -1025,13 +1011,14 @@ flowchart TD
         GDRIVE_T[Google Drive<br/>File Watch]
     end
 
-    subgraph DATA_SOURCES["DATA SOURCES"]
+    subgraph DATA_SOURCES["DATA SOURCES (API)"]
         QBO[QuickBooks Online]
         XERO[Xero]
-        RIPPLING[Rippling]
-        GUSTO[Gusto]
-        ADP_S[ADP]
         KARBON_S[Karbon]
+    end
+
+    subgraph OFFLINE["MANUAL / OFFLINE SOURCES"]
+        PAYROLL_SW[Payroll Software<br/>e.g. Rippling / Gusto / ADP<br/>Manual pay stub download]
     end
 
     subgraph AI["AI PROCESSING"]
@@ -1048,7 +1035,6 @@ flowchart TD
     end
 
     subgraph TASK_MGMT["TASK MANAGEMENT"]
-        CLICKUP_S[ClickUp]
         KARBON_T[Karbon<br/>Work Items]
     end
 
@@ -1070,10 +1056,9 @@ flowchart TD
 
     N8N --> QBO
     N8N --> XERO
-    N8N --> RIPPLING
-    N8N --> GUSTO
-    N8N --> ADP_S
     N8N --> KARBON_S
+
+    PAYROLL_SW -.->|Manual download<br/>+ upload| GDRIVE
 
     N8N --> CLAUDE_S
     N8N --> CHATGPT
@@ -1084,7 +1069,6 @@ flowchart TD
     N8N --> GDRIVE
     N8N --> GMAIL
 
-    N8N --> CLICKUP_S
     N8N --> KARBON_T
 
     N8N --> GHL
@@ -1103,11 +1087,8 @@ flowchart TD
 | Gmail | REST | OAuth 2.0 | Built-in | Yes (test account) |
 | QuickBooks Online | REST | OAuth 2.0 | Built-in | Yes (developer.intuit.com) |
 | Xero | REST | OAuth 2.0 | Built-in | Yes (Xero demo company) |
-| Rippling | REST | API Key | HTTP Request | Contact Rippling |
-| Gusto | REST | OAuth 2.0 | HTTP Request | Yes (Gusto sandbox) |
-| ADP | REST | OAuth 2.0 | HTTP Request | Yes (ADP Marketplace) |
+| Payroll software (e.g. Rippling/Gusto/ADP) | None — manual/offline | N/A | N/A — pay stubs downloaded and uploaded to Google Drive by the team | N/A |
 | Karbon | REST | API Key | HTTP Request | Contact Karbon |
-| ClickUp | REST | API Key | Built-in | Yes (test workspace) |
 | Claude AI | REST | API Key | Built-in | Yes (same API) |
 | ChatGPT | REST | API Key | Built-in | Yes (same API) |
 | GoHighLevel | REST | API Key | HTTP Request | Yes (test account) |
@@ -1136,9 +1117,8 @@ flowchart TD
         F_CHECK -->|API| F_API[Pull QBO/Xero<br/>reports via API]
         F_CHECK -->|No API| F_EMAIL[Email request<br/>to client]
 
-        P_CHECK{Payroll<br/>access?}
-        P_CHECK -->|API| P_API[Pull Rippling/Gusto<br/>payroll via API]
-        P_CHECK -->|No API| P_EMAIL[Email request<br/>to contact]
+        P_CHECK{Has<br/>payroll?}
+        P_CHECK -->|Yes| P_MANUAL[Manual: team downloads<br/>+ uploads pay stubs<br/>AI parses uploaded stub]
         P_CHECK -->|None| P_SKIP[Flag distributions<br/>only]
     end
 
@@ -1163,7 +1143,7 @@ flowchart TD
         direction TB
         AGENDA_GEN[Meeting Agenda<br/>Claude AI draft<br/>Google Docs]
         SLIDES_GEN[Presentation<br/>Google Slides]
-        TASKS_GEN[Task Delegation<br/>ClickUp + Karbon]
+        TASKS_GEN[Task Delegation<br/>Karbon work items]
     end
 
     GENERATE --> SAVE_ALL[Save everything<br/>to Google Drive<br/>client folder]
@@ -1180,7 +1160,7 @@ flowchart TD
         direction TB
         FATHOM_PULL[Fathom transcript<br/>auto-detected]
         ACTION_EXTRACT[Claude AI extracts<br/>action items]
-        TASK_CREATE[ClickUp tasks<br/>created]
+        TASK_CREATE[Karbon work items<br/>created]
         FOLLOWUP[Client follow-up<br/>email drafted]
         KARBON_UPDATE[Karbon updated<br/>with meeting notes]
     end
