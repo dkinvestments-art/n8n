@@ -2,7 +2,7 @@
 
 ## Quarterly Client Meeting Preparation — Automation System
 
-**Version:** 1.0
+**Version:** 1.1
 **Date:** _______________
 
 ---
@@ -94,13 +94,13 @@ flowchart TD
     style S2 fill:#F44336,color:#fff
     style S3 fill:#4CAF50,color:#fff
     style S4 fill:#2196F3,color:#fff
-    style S5 fill:#F44336,color:#fff
-    style S6 fill:#F44336,color:#fff
+    style S5 fill:#FF9800,color:#fff
+    style S6 fill:#FF9800,color:#fff
     style S7 fill:#4CAF50,color:#fff
     style S8 fill:#FF9800,color:#fff
     style S9 fill:#FF9800,color:#fff
     style S10 fill:#FF9800,color:#fff
-    style S11 fill:#F44336,color:#fff
+    style S11 fill:#FF9800,color:#fff
     style S12 fill:#FF9800,color:#fff
     style S13 fill:#FF9800,color:#fff
     style S14 fill:#4CAF50,color:#fff
@@ -110,7 +110,7 @@ flowchart TD
 - Green = Can be fully automated
 - Blue = Can be partially automated (detection, not resolution)
 - Orange = Can be AI-assisted (human review required)
-- Red = Must remain manual
+- Red = Manual by firm choice (payroll pay stubs are collected manually — no payroll dashboard connections)
 
 ### 2.2 Time Breakdown
 
@@ -120,21 +120,24 @@ flowchart TD
 | 2. Download payroll | 5 min | ~5 min (Manual: team downloads + uploads pay stubs) | 0 min |
 | 3. File documents | 3 min | 0 min (auto-filed) | 3 min |
 | 4. Check QBO bank feeds | 5 min | 1 min (review auto-generated health report) | 4 min |
-| 5. Fix QBO rules | 5 min | 3 min (AI suggests, human applies) | 2 min |
-| 6. Mass reclassify transactions | 10 min | 8 min (still mostly manual, delegation automated) | 2 min |
+| 5. Fix QBO rules | 5 min | 2 min (AI suggests + human approves rules; n8n virtual rules engine applies them) | 3 min |
+| 6. Mass reclassify transactions | 10 min | 3 min (approve proposed reclassification list; n8n applies via QBO API) | 7 min |
 | 7. Download financials | 5 min | 0 min (auto-pulled or auto-requested) | 5 min |
 | 8. Model estimated taxes | 15 min | 3 min (review auto-populated template) | 12 min |
 | 9. Enter W-2 withholding | 5 min | ~1 min (AI reads uploaded pay stub + review) | 4 min |
 | 10. Model entity savings | 10 min | 2 min (review auto-calculated comparison) | 8 min |
-| 11. Research tax strategies | 15 min | 12 min (AI drafts, human validates) | 3 min |
+| 11. Research tax strategies | 15 min | 8 min (review AI research memo — Blue J findings composed by Claude; human validates) | 7 min |
 | 12. Build scorecard | 10 min | 2 min (review auto-generated scorecard) | 8 min |
 | 13. Write meeting agenda | 5 min | 2 min (review AI-drafted agenda) | 3 min |
 | 14. Delegate tasks | 3 min | 0 min (auto-created in Karbon) | 3 min |
-| **TOTAL** | **~101 min** | **~39 min** | **~62 min** |
+| **TOTAL** | **~101 min** | **~29 min** | **~72 min** |
 
 **Notes:**
 - "After Automation" times assume the client has API access to accounting (best case)
 - Payroll is collected manually (team downloads and uploads pay stubs); the AI then parses the uploaded stub
+- Reclassification (step 6) now follows a propose → approve → apply flow: Claude proposes categories, the human approves in a review sheet, and n8n applies the changes via the QBO API
+- Categorization rules (step 5) run through n8n's virtual rules engine; Claude suggests new rules from recurring patterns and a human approves before activation
+- Tax research (step 11) uses Blue J as the primary research engine; Claude composes a client-specific cited memo, and the professional validates all conclusions
 - For non-API accounting clients, add ~10 min for document collection wait time
 - Human review time cannot be eliminated — it ensures accuracy
 
@@ -178,7 +181,7 @@ flowchart TD
         KARBON[Karbon<br/>Pending Items]
         QBO[QBO / Xero<br/>Financial Reports]
         PAYROLL[Payroll Software<br/>Manual pay stub<br/>download + upload]
-        EMAIL[GoHighLevel / Gmail<br/>Document Requests]
+        EMAIL[Karbon Client Requests<br/>auto-reminders<br/>Gmail/GHL fallback]
         INTAKE[Google Drive<br/>Document Intake]
     end
 
@@ -367,13 +370,16 @@ flowchart TD
 
     CHECK -->|No_Access| REQUEST_PATH
 
-    subgraph REQUEST_PATH["EMAIL REQUEST PATH"]
-        RECIPIENT{bookkeeper_email<br/>exists?}
-        RECIPIENT -->|Yes| BK_EMAIL[Send template email<br/>to bookkeeper]
-        RECIPIENT -->|No| CL_EMAIL[Send template email<br/>to client]
+    subgraph REQUEST_PATH["DOCUMENT REQUEST PATH"]
+        KCR[Create Karbon client request<br/>via Karbon API<br/>Auto-reminders until upload]
+        KCR --> KCR_DETECT[n8n detects request<br/>completion via Karbon API]
+        KCR -->|Client request<br/>unavailable| RECIPIENT{bookkeeper_email<br/>exists?}
+        RECIPIENT -->|Yes| BK_EMAIL[Fallback: template email<br/>to bookkeeper<br/>Gmail/GoHighLevel]
+        RECIPIENT -->|No| CL_EMAIL[Fallback: template email<br/>to client<br/>Gmail/GoHighLevel]
         BK_EMAIL --> REQ_TASK[Create Karbon work item<br/>Awaiting docs from client]
         CL_EMAIL --> REQ_TASK
-        REQ_TASK --> WATCH[Set up Drive<br/>folder watch trigger]
+        KCR_DETECT --> WATCH[Set up Drive<br/>folder watch trigger]
+        REQ_TASK --> WATCH
     end
 
     SAVE_DRIVE --> OUT([Return financial<br/>data JSON])
@@ -381,6 +387,14 @@ flowchart TD
     TASK --> OUT2([Return manual<br/>task created flag])
     WATCH --> OUT3([Return awaiting<br/>docs flag])
 ```
+
+**Branch B (no accounting access) — how documents are requested:**
+
+The primary mechanism is a **Karbon Client Request**: n8n creates the
+request via the Karbon API, Karbon automatically reminds the client until
+they upload the requested documents, and n8n detects completion via the
+Karbon API. Templated emails via Gmail or GoHighLevel remain available as
+a fallback when a client request cannot be used for a given contact.
 
 **QBO API Details:**
 - Base URL: `https://quickbooks.api.intuit.com/v3/company/{companyId}`
@@ -561,7 +575,7 @@ Tax savings of $9,256 from the new C-Corp entity structure.
 
 ```mermaid
 flowchart TD
-    IN([Receive:<br/>• Pending items<br/>• Tax estimation<br/>• Scorecard<br/>• Client profile]) --> COMPILE[Compile all inputs<br/>into structured prompt]
+    IN([Receive:<br/>• Pending items<br/>• Tax estimation<br/>• Scorecard<br/>• Client profile<br/>• Blue J research memo<br/>• Pre-meeting questionnaire<br/>responses]) --> COMPILE[Compile all inputs<br/>into structured prompt]
 
     COMPILE --> CLAUDE[Send to Claude AI<br/>with agenda template<br/>instructions]
 
@@ -593,7 +607,7 @@ flowchart TD
     IN([Receive flags from<br/>all sub-workflows]) --> CATEGORIZE
 
     subgraph CATEGORIZE["CATEGORIZE FLAGS"]
-        ADMIN[Admin Tasks<br/>Reclassification<br/>Rule updates<br/>Document filing]
+        ADMIN[Admin Tasks<br/>Approve reclassification<br/>proposals / new rules<br/>Document filing]
         REVIEW[Review Tasks<br/>Verify numbers<br/>Check reimbursements<br/>Confirm payments]
         CLIENT_A[Client Actions<br/>Upload documents<br/>Sign forms<br/>Make payments]
     end
@@ -638,6 +652,84 @@ flowchart TD
 
 ---
 
+### 5.9 Sub-Workflow 9: Transaction Reclassification Engine
+
+Mass reclassification is no longer a manual step. It follows a
+**propose → approve → apply** pattern: n8n pulls uncategorized or
+suspect transactions via the QBO API, Claude proposes a target category
+and class for each transaction, the proposals land in a
+"Reclassification Review" Google Sheet with Approve checkboxes, and once
+approved, n8n applies the changes via QBO API batch/sparse updates. Every
+change is written to a full audit log. If API-based updates are ever
+insufficient, the fallback is SaasAnt Transactions (~$20/mo, optional) or
+Antigravity RPA.
+
+```mermaid
+flowchart TD
+    IN([Trigger: prep pipeline<br/>or scheduled run]) --> PULL[Pull transactions<br/>via QBO API<br/>uncategorized + suspect]
+
+    PULL --> PROPOSE[Claude proposes target<br/>category + class<br/>per transaction<br/>with confidence + rationale]
+
+    PROPOSE --> SHEET[Write proposals to<br/>Reclassification Review<br/>Google Sheet<br/>with Approve checkboxes]
+
+    SHEET --> NOTIFY_REV[Notify reviewer<br/>proposals ready]
+
+    NOTIFY_REV --> APPROVE{Human approves<br/>each proposal?}
+
+    APPROVE -->|Approved rows| APPLY[n8n applies changes<br/>via QBO API<br/>batch / sparse updates]
+    APPROVE -->|Rejected rows| SKIP[Leave unchanged<br/>log rejection reason]
+
+    APPLY --> AUDIT[Append to full<br/>audit log sheet<br/>who / what / when / before-after]
+    SKIP --> AUDIT
+
+    APPLY -->|API update<br/>not possible| FALLBACK[Fallback:<br/>SaasAnt Transactions<br/>~$20/mo optional<br/>or Antigravity RPA]
+    FALLBACK --> AUDIT
+
+    AUDIT --> OUT([Return applied /<br/>rejected counts +<br/>audit log link])
+```
+
+---
+
+### 5.10 Sub-Workflow 10: Virtual Categorization Rules Engine
+
+QBO's bank-feed categorization rules are **not editable via the QBO
+API**, so instead of editing QBO's rules, n8n runs its own "virtual
+rules engine" on a weekly schedule. Rules live in a Google Sheet
+(description / amount / account match → category / class). n8n applies
+matching rules directly to transactions via the QBO API, and Claude
+suggests new rules from recurring patterns — a human approves every
+suggested rule before it becomes active.
+
+```mermaid
+flowchart TD
+    SCHED([Weekly schedule<br/>trigger]) --> RULES[Load active rules from<br/>Rules Google Sheet<br/>description / amount /<br/>account match →<br/>category / class]
+
+    RULES --> TXN[Pull new transactions<br/>via QBO API]
+
+    TXN --> MATCH{Transaction matches<br/>an active rule?}
+
+    MATCH -->|Yes| APPLY_RULE[Apply category + class<br/>via QBO API]
+    MATCH -->|No| PATTERN[Collect unmatched<br/>transactions]
+
+    APPLY_RULE --> LOG[Write to<br/>audit log sheet]
+
+    PATTERN --> SUGGEST[Claude analyzes<br/>recurring patterns<br/>Suggests new rules]
+
+    SUGGEST --> PENDING[Write suggestions to<br/>Rules Sheet as<br/>Pending Approval]
+
+    PENDING --> HUMAN{Human approves<br/>rule?}
+
+    HUMAN -->|Yes| ACTIVATE[Mark rule Active<br/>applies from next run]
+    HUMAN -->|No| REJECT[Mark rule Rejected<br/>keep for reference]
+
+    ACTIVATE --> LOG
+    REJECT --> LOG
+
+    LOG --> OUT([Return rules applied +<br/>new suggestions count])
+```
+
+---
+
 ## 6. CLIENT PROFILE ADAPTIVE SYSTEM
 
 ### 6.1 How Profiles Drive Workflow Behavior
@@ -653,7 +745,7 @@ flowchart TD
 
     B1 -->|API_Full| QBO_API[Auto-pull reports<br/>via API]
     B1 -->|Portal_Login| QBO_MANUAL[Generate pull<br/>instructions]
-    B1 -->|No_Access| QBO_EMAIL[Send document<br/>request email]
+    B1 -->|No_Access| QBO_EMAIL[Create Karbon client request<br/>auto-reminders<br/>email fallback]
 
     B2 -->|Yes| PAY_MANUAL[Manual: team downloads<br/>+ uploads pay stubs<br/>AI parses uploaded stub]
     B2 -->|None| PAY_SKIP[Skip payroll<br/>distributions only]
@@ -694,7 +786,8 @@ flowchart TD
   to QBO format), no payroll (distributions only), single entity
   template, NY PTET calculation.
 
-- **Client C**: Email-driven — document request sent to client,
+- **Client C**: Request-driven — Karbon client request created for the
+  client (auto-reminders until upload; templated email as fallback),
   Drive watch trigger awaits uploads, Claude AI parses uploaded PDFs,
   simple sole prop tax template, federal only.
 
@@ -823,6 +916,49 @@ Client Meeting Prep Package
     └── Items requiring human judgment
 ```
 
+### 8.2 Approval Gates & Client Touchpoints
+
+Four conveniences wrap the prep pipeline in lightweight controls and
+client-facing touchpoints:
+
+1. **One-click approval gates.** The "prep is ready" email to the
+   preparer includes **Approve** and **Request Changes** links, backed by
+   an n8n human-in-the-loop webhook. Nothing client-facing (agenda,
+   scorecard, payment schedule) is released until the preparer clicks
+   Approve; Request Changes routes the package back with a comment field.
+
+2. **Pre-meeting client questionnaire.** A short form (3-5 questions —
+   e.g., major purchases planned, life/business changes, topics to
+   discuss) is sent with the meeting reminder. Responses feed the agenda
+   generator (Sub-Workflow 6 input), so the agenda reflects what the
+   client actually wants to cover.
+
+3. **Payment reminder workflow.** After the preparer approves the prep
+   package, n8n schedules reminder emails to the client and the internal
+   payments coordinator ahead of each federal and CA estimated-payment
+   due date, including the exact amounts and direct links to EFTPS and
+   CA FTB Web Pay.
+
+4. **Monitoring.** Every execution appends a row to a run-log Google
+   Sheet (client, trigger, steps completed, flags, duration, outcome). A
+   free **Looker Studio** dashboard on top of that sheet shows prep
+   status per client, missing documents, open flags, and upcoming
+   meetings. Failures trigger an alert email immediately, and a weekly
+   digest summarizes all runs.
+
+```mermaid
+flowchart LR
+    PREP[Prep package<br/>generated] --> GATE{One-click gate:<br/>Approve /<br/>Request Changes}
+    GATE -->|Approve| RELEASE[Release client-facing<br/>outputs]
+    GATE -->|Request Changes| REVISE[Route back to<br/>pipeline with comments]
+    REVISE --> PREP
+    RELEASE --> PAYREM[Schedule payment<br/>reminders<br/>EFTPS + CA FTB Web Pay]
+    QUEST[Pre-meeting<br/>questionnaire<br/>3-5 questions] --> AGENDA_IN[Agenda generator<br/>input]
+    PREP --> RUNLOG[Run-log<br/>Google Sheet]
+    RUNLOG --> LOOKER[Looker Studio<br/>dashboard]
+    RUNLOG --> ALERTS[Failure alerts +<br/>weekly digest]
+```
+
 ---
 
 ## 9. POST-MEETING AUTOMATION
@@ -898,9 +1034,9 @@ flowchart TD
 
 ```mermaid
 pie title Automation Coverage (14 Process Steps)
-    "Fully Automated" : 4
-    "AI-Assisted (Human Review)" : 6
-    "Manual (Cannot Automate)" : 4
+    "Fully Automated (4)" : 4
+    "AI-Assisted — Human Review (9)" : 9
+    "Manual (1)" : 1
 ```
 
 ### 11.2 Detailed Classification
@@ -914,25 +1050,25 @@ pie title Automation Coverage (14 Process Steps)
 | 7. Financial report download | Pull P&L and Balance Sheet | n8n + QBO/Xero API |
 | 14. Task delegation | Create Karbon work items for team | n8n + Karbon API |
 
-#### AI-Assisted — Human Review Required (6 steps)
+#### AI-Assisted — Human Review Required (9 steps)
 
 | Step | What | AI Does | Human Does |
 |------|------|---------|------------|
 | 4. Bank feed review | Check bank sync and categorization | Detects anomalies, flags issues | Investigates root cause |
+| 5. Categorization rules | Maintain n8n virtual rules engine (QBO bank-feed rules aren't editable via API) | Suggests new rules from recurring patterns; n8n applies active rules via QBO API weekly | Approves each suggested rule before activation |
+| 6. Mass reclassify transactions | Propose → approve → apply reclassification | Proposes category/class per transaction; n8n applies approved changes via QBO API batch updates with audit log | Approves/rejects proposals in the Reclassification Review sheet |
 | 8. Tax estimation | Calculate quarterly estimated payments | Populates template, validates | Reviews projections, applies judgment |
 | 9. W-2 withholding entry | Read withholding from uploaded pay stub | Parses uploaded stub, populates tax template | Reviews extracted figures |
 | 10. Entity comparison | Model tax with vs. without C-Corp | Calculates both scenarios | Validates assumptions |
+| 11. Tax strategy research | Research strategies via Blue J + memo drafting | Blue J surfaces cited research; Claude composes a client-specific cited memo; NotebookLM cross-checks | Validates all conclusions and applies professional judgment |
 | 12. Client scorecard | Build 4-metric performance report | Calculates metrics, writes narrative | Reviews narrative accuracy |
 | 13. Meeting agenda | Draft structured meeting agenda | Generates from all collected data | Customizes, adds personal insights |
 
-#### Manual — Cannot Automate (4 steps)
+#### Manual — By Firm Choice (1 step)
 
-| Step | What | Why It Must Stay Manual |
+| Step | What | Why It Stays Manual |
 |------|------|----------------------|
-| 2. Payroll download | Download pay stubs from payroll software, upload to Drive | Firm does not connect via API to client payroll dashboards; pay stubs are downloaded and uploaded manually |
-| 5. Fix QBO rules | Edit categorization rules in QBO | QBO API doesn't support rule management |
-| 6. Mass reclassify transactions | Bulk re-categorize transactions | Requires judgment on correct categories; QBO bulk tools are limited |
-| 11. Tax strategy research | Research IRC sections, case law, strategies | Requires professional judgment, legal interpretation, client-specific application |
+| 2. Payroll download | Download pay stubs from payroll software, upload to Drive | By firm choice — no connections to client payroll dashboards; pay stubs are downloaded and uploaded manually. (Optional future avenue: a dedicated intake mailbox where clients email stubs in — still no payroll logins. See Future Enhancements.) |
 
 ---
 
@@ -952,6 +1088,7 @@ gantt
     Karbon pending items pull                   :p1c, 2026-07-02, 2d
     Document request emails + Drive intake      :p1d, 2026-07-03, 3d
     Manual payroll upload + AI parse            :p1e, 2026-07-03, 3d
+    Karbon client requests + auto-reminders     :p1f, 2026-07-03, 3d
 
     section Week 2 - Processing & Output
     Tax estimation templates                    :p2a, 2026-07-08, 3d
@@ -960,6 +1097,11 @@ gantt
     Meeting agenda generator + Slides           :p2d, 2026-07-10, 2d
     Karbon task creation + notifications        :p2e, 2026-07-10, 2d
     Fathom integration + action items           :p2f, 2026-07-11, 2d
+    Reclassification engine (propose-approve-apply) :p2g, 2026-07-08, 3d
+    Virtual rules engine                        :p2h, 2026-07-09, 3d
+    Blue J research memo integration            :p2i, 2026-07-10, 2d
+    Approval gates + payment reminders          :p2j, 2026-07-11, 2d
+    Run log + Looker Studio dashboard           :p2k, 2026-07-11, 2d
 
     section Week 3 - Testing & Handoff
     Sandbox testing all scenarios               :p3a, 2026-07-15, 3d
@@ -1007,6 +1149,7 @@ flowchart TD
     subgraph AI["AI PROCESSING"]
         CLAUDE_S[Claude AI<br/>Anthropic API]
         CHATGPT[ChatGPT<br/>OpenAI API<br/>Backup]
+        BLUEJ[Blue J Tax<br/>AI tax research<br/>cited findings<br/>used via UI]
     end
 
     subgraph PRODUCTIVITY["PRODUCTIVITY"]
@@ -1026,12 +1169,16 @@ flowchart TD
         FATHOM_S[Fathom]
     end
 
+    subgraph MONITORING["OUTPUT / MONITORING"]
+        LOOKER[Looker Studio<br/>free dashboard<br/>run-log + prep status]
+    end
+
     subgraph MANUAL_TOOLS["MANUAL / REFERENCE TOOLS"]
         PROCONNECT[ProConnect<br/>Tax Returns]
-        BLUEJ[BlueJ Tax]
-        NOTEBOOK[NotebookLM<br/>Tax Research]
+        NOTEBOOK[NotebookLM<br/>Research Cross-check]
         SCRIBE_S[Scribe<br/>Process Docs]
         ANTIGRAVITY_S[Antigravity<br/>RPA Fallback]
+        SAASANT[SaasAnt Transactions<br/>~$20/mo optional<br/>bulk QBO edit fallback]
     end
 
     GCAL --> N8N
@@ -1045,6 +1192,8 @@ flowchart TD
 
     N8N --> CLAUDE_S
     N8N --> CHATGPT
+    BLUEJ -.->|Research findings<br/>pasted or uploaded<br/>via UI| CLAUDE_S
+    NOTEBOOK -.->|Cross-check| CLAUDE_S
 
     N8N --> GSHEETS
     N8N --> GDOCS
@@ -1056,6 +1205,8 @@ flowchart TD
 
     N8N --> GHL
     N8N --> FATHOM_S
+
+    GSHEETS -->|Run-log sheet| LOOKER
 ```
 
 ### 13.2 API Requirements Summary
@@ -1071,9 +1222,12 @@ flowchart TD
 | QuickBooks Online | REST | OAuth 2.0 | Built-in | Yes (developer.intuit.com) |
 | Xero | REST | OAuth 2.0 | Built-in | Yes (Xero demo company) |
 | Payroll software (e.g. Rippling/Gusto/ADP) | None — manual/offline | N/A | N/A — pay stubs downloaded and uploaded to Google Drive by the team | N/A |
-| Karbon | REST | API Key | HTTP Request | Contact Karbon |
+| Karbon (incl. Client Requests) | REST | API Key | HTTP Request | Contact Karbon |
 | Claude AI | REST | API Key | Built-in | Yes (same API) |
 | ChatGPT | REST | API Key | Built-in | Yes (same API) |
+| Blue J Tax | Manual/limited — used via UI | Blue J login | N/A — research findings pasted/uploaded and fed to Claude for the memo | N/A |
+| Looker Studio (free) | Native Google Sheets connector (no n8n API needed) | Google account | N/A — dashboard reads the run-log Sheet directly | Yes (test account) |
+| SaasAnt Transactions (~$20/mo, optional) | File-based bulk import/export for QBO | SaasAnt login + QBO connect | N/A — optional fallback for bulk QBO edits | Trial available |
 | GoHighLevel | REST | API Key | HTTP Request | Yes (test account) |
 | Fathom | REST | API Key | HTTP Request | Contact Fathom |
 
@@ -1098,7 +1252,7 @@ flowchart TD
 
         F_CHECK{Accounting<br/>access?}
         F_CHECK -->|API| F_API[Pull QBO/Xero<br/>reports via API]
-        F_CHECK -->|No API| F_EMAIL[Email request<br/>to client]
+        F_CHECK -->|No API| F_EMAIL[Karbon client request<br/>auto-reminders<br/>email fallback]
 
         P_CHECK{Has<br/>payroll?}
         P_CHECK -->|Yes| P_MANUAL[Manual: team downloads<br/>+ uploads pay stubs<br/>AI parses uploaded stub]
@@ -1118,6 +1272,7 @@ flowchart TD
         TAX[Tax Estimation<br/>Engine<br/>Google Sheets]
         COMPARE[Entity Comparison<br/>With vs Without<br/>C-Corp]
         SCORECARD[Client Scorecard<br/>4 metrics +<br/>AI narrative]
+        RESEARCH[Tax Research Memo<br/>Blue J findings +<br/>Claude cited memo]
     end
 
     PROCESS --> GENERATE
@@ -1135,7 +1290,9 @@ flowchart TD
 
     NOTIFY_PREP --> HUMAN_REVIEW[HUMAN REVIEW<br/>15-20 minutes<br/>Verify and customize]
 
-    HUMAN_REVIEW --> CLIENT_MEETING[CLIENT MEETING<br/>Zoom/Teams]
+    HUMAN_REVIEW --> GATE{One-click gate<br/>Approve /<br/>Request Changes}
+    GATE -->|Request Changes| PROCESS
+    GATE -->|Approve| CLIENT_MEETING[CLIENT MEETING<br/>Zoom/Teams]
 
     CLIENT_MEETING --> POST
 
@@ -1190,6 +1347,25 @@ Client Root Folder/
 │   └── Q4/
 └── Prior Years/
 ```
+
+### 14.4 Future Enhancements (Optional Avenues)
+
+These are optional avenues beyond the v1.1 scope — none are required for
+the system to operate, and none change the locked decisions above:
+
+- **Dedicated payroll intake mailbox.** Clients email their pay stubs to
+  a dedicated address; n8n parses and files them automatically into the
+  client's Drive folder. Still no payroll logins or dashboard
+  connections — collection remains client-driven.
+- **QBO Payroll passthrough (existing connections only).** For clients
+  whose payroll runs inside QBO Payroll on an already-connected QBO
+  account, payslips could be pulled through that same existing QBO
+  connection — no new dashboards or logins are added.
+- **AI-agent connectors (MCP).** MCP connectors for QuickBooks, Gmail,
+  and Google Drive would enable ad-hoc, AI-driven prep runs outside n8n
+  (e.g., "re-run the scorecard for Client A with the latest QBO data").
+- **Client portal.** A simple portal for clients to upload documents and
+  view their scorecard between meetings.
 
 ---
 
