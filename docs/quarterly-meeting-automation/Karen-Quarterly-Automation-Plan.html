@@ -362,13 +362,13 @@ flowchart LR
     <div><strong>Check QuickBooks bank feeds</strong><br>
     <em>Now:</em> You open QBO and review. <em>After:</em> System checks automatically and flags problems. You review the flags only.</div>
   </li>
-  <li class="step-manual"><span class="step-num">5</span>
+  <li class="step-ai"><span class="step-num">5</span>
     <div><strong>Fix QuickBooks categorization rules</strong><br>
-    <em>Still manual.</em> QuickBooks doesn't allow rule editing through automation. System can detect issues, but you apply the fix.</div>
+    <em>Now:</em> You hunt down and edit rules by hand in QuickBooks. <em>After:</em> The system runs its own rulebook — it categorizes incoming transactions on a schedule using rules we control, and suggests new rules when it spots recurring patterns. You just approve the rule changes.</div>
   </li>
-  <li class="step-manual"><span class="step-num">6</span>
+  <li class="step-ai"><span class="step-num">6</span>
     <div><strong>Reclassify transactions</strong><br>
-    <em>Still manual.</em> Bulk reclassification requires human judgment. System auto-creates the task for your team member and provides instructions.</div>
+    <em>Now:</em> You (or Keto) reclassify transactions one by one. <em>After:</em> AI proposes the full reclassification list in a review sheet — you tick approve, and the system applies the changes to QuickBooks in bulk, with a complete audit log of what changed.</div>
   </li>
   <li class="step-auto"><span class="step-num">7</span>
     <div><strong>Download P&L and Balance Sheet</strong><br>
@@ -386,9 +386,9 @@ flowchart LR
     <div><strong>Model C-Corp tax savings</strong><br>
     <em>Now:</em> You duplicate the return, remove C-Corp, compare. <em>After:</em> System runs both scenarios automatically. You verify the result.</div>
   </li>
-  <li class="step-manual"><span class="step-num">11</span>
+  <li class="step-ai"><span class="step-num">11</span>
     <div><strong>Research tax strategies</strong><br>
-    <em>Still manual.</em> This requires professional expertise — reading tax code, applying it to the client. AI can help draft research, but you validate the conclusions.</div>
+    <em>Now:</em> You research from scratch in Gemini and NotebookLM. <em>After:</em> Blue J — our purpose-built tax research AI — plus Claude produce a cited research memo tailored to the client's situation. You validate the conclusions; the professional judgment stays 100% yours.</div>
   </li>
   <li class="step-ai"><span class="step-num">12</span>
     <div><strong>Build client scorecard</strong><br>
@@ -418,7 +418,7 @@ flowchart LR
     <div class="label">After automation (manual payroll + review)</div>
   </div>
   <div class="impact-card">
-    <div class="number">~60 min</div>
+    <div class="number">~70 min</div>
     <div class="label">Saved per client per quarter</div>
   </div>
   <div class="impact-card">
@@ -441,18 +441,18 @@ flowchart LR
     <tr><td>2. Download payroll</td><td>5 min</td><td>5 min</td><td><span class="badge badge-manual">Manual</span></td></tr>
     <tr><td>3. File documents</td><td>3 min</td><td>0 min</td><td><span class="badge badge-auto">Auto</span></td></tr>
     <tr><td>4. Check bank feeds</td><td>5 min</td><td>1 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
-    <tr><td>5. Fix QBO rules</td><td>5 min</td><td>3 min</td><td><span class="badge badge-manual">Manual</span></td></tr>
-    <tr><td>6. Reclassify transactions</td><td>10 min</td><td>8 min</td><td><span class="badge badge-manual">Manual</span></td></tr>
+    <tr><td>5. Fix QBO rules</td><td>5 min</td><td>2 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
+    <tr><td>6. Reclassify transactions</td><td>10 min</td><td>3 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
     <tr><td>7. Download financials</td><td>5 min</td><td>0 min</td><td><span class="badge badge-auto">Auto</span></td></tr>
     <tr><td>8. Tax estimation</td><td>15 min</td><td>3 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
     <tr><td>9. W-2 withholding</td><td>5 min</td><td>1 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
     <tr><td>10. Entity comparison</td><td>10 min</td><td>2 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
-    <tr><td>11. Tax research</td><td>15 min</td><td>12 min</td><td><span class="badge badge-manual">Manual</span></td></tr>
+    <tr><td>11. Tax research</td><td>15 min</td><td>8 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
     <tr><td>12. Scorecard</td><td>10 min</td><td>2 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
     <tr><td>13. Meeting agenda</td><td>5 min</td><td>2 min</td><td><span class="badge badge-ai">AI + Review</span></td></tr>
     <tr><td>14. Delegate tasks</td><td>3 min</td><td>0 min</td><td><span class="badge badge-auto">Auto</span></td></tr>
     <tr style="font-weight:600; background:#EBF8FF">
-      <td>TOTAL</td><td>~101 min</td><td>~39 min</td><td></td>
+      <td>TOTAL</td><td>~101 min</td><td>~29 min</td><td></td>
     </tr>
   </tbody>
 </table>
@@ -621,6 +621,15 @@ flowchart LR
 
 <p>You review the drafted follow-up email before it's sent, and verify the tasks are assigned to the right people.</p>
 
+<h3>More Built-In Conveniences</h3>
+<ul>
+  <li style="margin-bottom:8px;"><strong>One-click approvals:</strong> The prep-ready email includes Approve / Request Changes buttons. Nothing client-facing goes out until you click Approve.</li>
+  <li style="margin-bottom:8px;"><strong>Automatic document chasing:</strong> Document requests go out as Karbon client requests, which remind the client automatically until they upload — no more manual follow-up emails.</li>
+  <li style="margin-bottom:8px;"><strong>Pre-meeting client questionnaire:</strong> A short 3-question form goes out with the meeting reminder ("any big purchases, new entities, questions?"). The answers feed straight into your agenda, so the meeting covers what the client actually cares about.</li>
+  <li style="margin-bottom:8px;"><strong>Payment reminders:</strong> Once you approve the quarterly estimates, the system schedules reminder emails to the client (and Christina) before each federal and state due date, with the exact amounts and payment links.</li>
+  <li style="margin-bottom:8px;"><strong>Prep status dashboard:</strong> A live dashboard (free, via Looker Studio) shows every client's prep status at a glance — what's collected, what's missing, what's flagged, and which meetings are coming up.</li>
+</ul>
+
 <!-- ============================================================ -->
 <div class="page-break"></div>
 <h2>8. What's Automated vs. What Stays with You</h2>
@@ -629,8 +638,8 @@ flowchart LR
 <pre class="mermaid">
 pie title How the 14 Steps Break Down
     "Fully Automated (4 steps)" : 4
-    "AI-Assisted — You Review (6 steps)" : 6
-    "Stays Manual (4 steps)" : 4
+    "AI-Assisted — You Review (9 steps)" : 9
+    "Stays Manual (1 step)" : 1
 </pre>
 </div>
 
@@ -650,22 +659,22 @@ pie title How the 14 Steps Break Down
   <thead><tr><th>Step</th><th>What AI Does</th><th>What You Do</th></tr></thead>
   <tbody>
     <tr><td>Bank feed check</td><td>Flags sync issues, categorization problems</td><td>Investigate flagged items</td></tr>
+    <tr><td>Categorization rules</td><td>Applies our own rulebook to incoming transactions, suggests new rules from patterns</td><td>Approve new or changed rules</td></tr>
+    <tr><td>Reclassify transactions</td><td>Proposes the full reclassification list, applies approved changes to QuickBooks in bulk</td><td>Tick approve on the review sheet</td></tr>
     <tr><td>W-2 withholding</td><td>Reads the manually uploaded pay stubs, fills the withholding numbers into the calculator</td><td>Review the numbers</td></tr>
     <tr><td>Tax estimation</td><td>Populates calculator, runs projections</td><td>Review projections, adjust judgment calls</td></tr>
     <tr><td>Entity comparison</td><td>Calculates "with vs. without" C-Corp scenarios</td><td>Verify the assumptions are right</td></tr>
+    <tr><td>Tax strategy research</td><td>Blue J + Claude produce a cited research memo for the client's situation</td><td>Validate conclusions, apply professional judgment</td></tr>
     <tr><td>Client scorecard</td><td>Calculates all 4 metrics, writes explanation</td><td>Review the narrative, tweak wording</td></tr>
     <tr><td>Meeting agenda</td><td>Drafts full agenda from all collected data</td><td>Customize, add personal insights</td></tr>
   </tbody>
 </table>
 
-<h3>Stays Manual — Requires Your Expertise (or by choice for now)</h3>
+<h3>Stays Manual — By Choice (for now)</h3>
 <table>
   <thead><tr><th>Step</th><th>Why It Stays Manual</th></tr></thead>
   <tbody>
-    <tr><td>Download payroll</td><td><strong>By choice for now.</strong> We don't want to connect directly to every client's payroll system, so you/an admin download the pay stubs and drop them in the client folder. (Can be automated later.)</td></tr>
-    <tr><td>Fix QBO rules</td><td>QuickBooks doesn't allow editing categorization rules through its software connection — must be done in the QuickBooks interface</td></tr>
-    <tr><td>Reclassify transactions</td><td>Requires professional judgment about correct categories; system creates the Karbon task and instructions for your team</td></tr>
-    <tr><td>Tax strategy research</td><td>Reading tax code, applying it to specific client situations, and making professional recommendations — this is your core value and expertise</td></tr>
+    <tr><td>Download payroll</td><td><strong>By choice.</strong> We don't want to connect directly to every client's payroll system, so you/an admin download the pay stubs and drop them in the client folder. Optional shortcut: a dedicated intake email address lets clients or their payroll contact simply email stubs in, and the system files and reads them automatically — still no payroll logins on our side.</td></tr>
   </tbody>
 </table>
 
@@ -683,7 +692,9 @@ pie title How the 14 Steps Break Down
   <div class="sw-item"><strong>QuickBooks Online</strong><br><span>Pulls P&L, Balance Sheet, bank feed data</span></div>
   <div class="sw-item"><strong>Xero</strong><br><span>Alternative to QBO for some clients</span></div>
   <div class="sw-item"><strong>Payroll Software</strong><br><span>Pay stubs downloaded manually (Gusto, Rippling, ADP, etc.) — not auto-connected</span></div>
-  <div class="sw-item"><strong>Karbon</strong><br><span>Pulls pending items, auto-creates work items/tasks, updates status</span></div>
+  <div class="sw-item"><strong>Karbon</strong><br><span>Pulls pending items, auto-creates work items/tasks, sends client document requests with auto-reminders</span></div>
+  <div class="sw-item"><strong>Blue J</strong><br><span>AI tax research with citations — powers the strategy research memos</span></div>
+  <div class="sw-item"><strong>Looker Studio</strong><br><span>Free Google dashboard — live prep status across all clients</span></div>
   <div class="sw-item"><strong>GoHighLevel</strong><br><span>Sends templated client emails</span></div>
   <div class="sw-item"><strong>Claude AI</strong><br><span>Parses data, validates calculations, writes agendas</span></div>
   <div class="sw-item"><strong>Fathom</strong><br><span>Meeting transcription and action item extraction</span></div>
@@ -691,7 +702,7 @@ pie title How the 14 Steps Break Down
   <div class="sw-item"><strong>NotebookLM</strong><br><span>Tax research validation (manual tool)</span></div>
 </div>
 
-<p><strong>New software required: None.</strong> The entire system runs on tools we already pay for.</p>
+<p><strong>New software required: None.</strong> The entire system runs on tools we already pay for (Looker Studio is free with Google Workspace). One optional add-on if we ever want it: SaasAnt Transactions (~$20/mo) as a backup tool for very large QuickBooks bulk edits.</p>
 
 <!-- ============================================================ -->
 <h2>10. Implementation Timeline</h2>
@@ -701,13 +712,13 @@ pie title How the 14 Steps Break Down
 <div class="timeline-item">
   <div class="week">Week 1</div>
   <div class="title">Foundation & Data Collection</div>
-  <div class="desc">Set up the Client Profile spreadsheet, email templates, and folder structure. Build the auto-pulls from QuickBooks and Xero, the Karbon pending-items pull, document-request emails, and the file intake detection. (Payroll stays a manual download for now.)</div>
+  <div class="desc">Set up the Client Profile spreadsheet, email templates, and folder structure. Build the auto-pulls from QuickBooks and Xero, the Karbon pending-items pull, Karbon client document requests with auto-reminders, and the file intake detection. (Payroll stays a manual download for now.)</div>
 </div>
 
 <div class="timeline-item">
   <div class="week">Week 2</div>
   <div class="title">Processing & Meeting Output</div>
-  <div class="desc">Build the tax estimation templates, entity comparison model, and scorecard generator with AI. Then the agenda generator, presentation slides, Karbon task auto-creation, notifications, and Fathom post-meeting processing.</div>
+  <div class="desc">Build the tax estimation templates, entity comparison model, and scorecard generator with AI. The reclassification approve-and-apply engine and the categorization rules engine. Then the agenda generator (with Blue J research memos and questionnaire answers), presentation slides, Karbon task auto-creation, one-click approvals, payment reminders, notifications, and Fathom post-meeting processing.</div>
 </div>
 
 <div class="timeline-item">

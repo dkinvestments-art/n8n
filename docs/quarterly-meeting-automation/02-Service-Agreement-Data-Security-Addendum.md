@@ -95,8 +95,8 @@ Upon completion of each deliverable:
 
 | Phase | Description | Duration | Milestone |
 |-------|------------|----------|-----------|
-| 1 | Requirements, design, foundation & data collection | Week 1 | Client profile, QBO/Xero auto-pull, Karbon pull, document-request emails, and manual payroll intake delivered |
-| 2 | Processing + meeting output + post-meeting | Week 2 | Tax calculation + scorecard templates with AI, agenda/slides, Karbon task creation, notifications, and Fathom integration delivered |
+| 1 | Requirements, design, foundation & data collection | Week 1 | Client profile, QBO/Xero auto-pull, Karbon pull, Karbon client document requests (auto-reminders), and manual payroll intake delivered |
+| 2 | Processing + meeting output + post-meeting | Week 2 | Tax calculation + scorecard templates with AI, transaction reclassification engine (propose/approve/apply), categorization rules engine, agenda/slides with research memo, approval gates, payment reminders, Karbon task creation, notifications, monitoring dashboard, and Fathom integration delivered |
 | 3 | Testing, documentation, handoff & support | Week 3 | All scenarios tested; documentation, training, and handoff complete; short support period |
 
 **Total project duration: approximately 3 weeks, with testing in the final week.**
