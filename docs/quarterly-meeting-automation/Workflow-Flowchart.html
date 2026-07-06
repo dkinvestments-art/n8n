@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quarterly Meeting Prep — Workflow Flowchart</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    color:#1a1a2e; line-height:1.5; background:#fff;
+    max-width:1000px; margin:0 auto; padding:36px 44px;
+  }
+  h1 { font-size:26px; font-weight:700; margin-bottom:4px; }
+  .subtitle { font-size:14px; color:#718096; margin-bottom:2px; }
+  .date-line { font-size:12px; color:#a0aec0; margin-bottom:24px; }
+  h2 { font-size:18px; font-weight:600; color:#2d3748; margin:30px 0 10px;
+       padding-bottom:6px; border-bottom:2px solid #e2e8f0; }
+  p { font-size:14px; color:#2d3748; margin-bottom:10px; }
+
+  .legend {
+    display:flex; flex-wrap:wrap; gap:10px 22px; margin:14px 0 8px;
+    padding:16px 20px; background:#f7fafc; border:1px solid #e2e8f0; border-radius:8px;
+  }
+  .legend-item { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; }
+  .dot { width:16px; height:16px; border-radius:4px; flex-shrink:0; }
+  .d-auto { background:#48BB78; }
+  .d-ai { background:#ED8936; }
+  .d-manual { background:#FC8181; }
+  .d-client { background:#4299E1; }
+  .d-gate { background:#9F7AEA; }
+
+  .mermaid-container {
+    background:#fff; border:1px solid #e2e8f0; border-radius:8px;
+    padding:18px; margin:14px 0; overflow-x:auto; text-align:center;
+  }
+  .counts { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0; }
+  .count-card { background:#f7fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px; text-align:center; }
+  .count-card .n { font-size:26px; font-weight:700; }
+  .count-card .l { font-size:11px; color:#718096; text-transform:uppercase; letter-spacing:.5px; }
+  .n-auto { color:#2F855A; } .n-ai { color:#C05621; } .n-manual { color:#C53030; } .n-client { color:#2B6CB0; }
+
+  table { width:100%; border-collapse:collapse; margin:12px 0 18px; font-size:13px; }
+  th { background:#2d3748; color:#fff; padding:9px 11px; text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+  td { padding:9px 11px; border-bottom:1px solid #e2e8f0; vertical-align:top; }
+  tr:nth-child(even) { background:#f7fafc; }
+  .tag { display:inline-block; padding:2px 9px; border-radius:11px; font-size:10px; font-weight:600; text-transform:uppercase; white-space:nowrap; }
+  .t-auto { background:#c6f6d5; color:#22543d; }
+  .t-ai { background:#feebc8; color:#7b341e; }
+  .t-manual { background:#fed7d7; color:#822727; }
+  .t-client { background:#bee3f8; color:#2a4365; }
+  .t-gate { background:#e9d8fd; color:#44337a; }
+  .footer { margin-top:34px; padding-top:14px; border-top:1px solid #e2e8f0; font-size:12px; color:#a0aec0; text-align:center; }
+  @media print { body { padding:16px 22px; } .mermaid-container { overflow:visible; } }
+</style>
+</head>
+<body>
+
+<h1>Quarterly Meeting Prep — Workflow Flowchart</h1>
+<p class="subtitle">What the system does end-to-end, and who does each part</p>
+<p class="date-line">Version 1.1 &nbsp;|&nbsp; Confidential</p>
+
+<h2>How to Read This</h2>
+<div class="legend">
+  <div class="legend-item"><span class="dot d-auto"></span> Automatic — system does it, no one touches it</div>
+  <div class="legend-item"><span class="dot d-ai"></span> AI-assisted — AI does the work, you review/approve</div>
+  <div class="legend-item"><span class="dot d-manual"></span> Manual — a person on our team does it</div>
+  <div class="legend-item"><span class="dot d-client"></span> Client action — the client does it</div>
+  <div class="legend-item"><span class="dot d-gate"></span> Approval gate — nothing proceeds until you say go</div>
+</div>
+
+<div class="counts">
+  <div class="count-card"><div class="n n-auto">4</div><div class="l">Fully Automatic</div></div>
+  <div class="count-card"><div class="n n-ai">9</div><div class="l">AI-Assisted (You Review)</div></div>
+  <div class="count-card"><div class="n n-manual">1</div><div class="l">Manual (Team)</div></div>
+  <div class="count-card"><div class="n n-client">—</div><div class="l">Client Touchpoints</div></div>
+</div>
+<p style="font-size:13px; color:#718096;">Counts reflect the 14 core prep steps. Client touchpoints (document uploads, questionnaire) and approval gates are supporting steps layered on top.</p>
+
+<h2>The Full Workflow</h2>
+<div class="mermaid-container">
+<pre class="mermaid">
+flowchart TD
+    classDef auto fill:#48BB78,color:#fff,stroke:#2F855A,stroke-width:1px;
+    classDef ai fill:#ED8936,color:#fff,stroke:#C05621,stroke-width:1px;
+    classDef manual fill:#FC8181,color:#fff,stroke:#C53030,stroke-width:1px;
+    classDef client fill:#4299E1,color:#fff,stroke:#2B6CB0,stroke-width:1px;
+    classDef gate fill:#9F7AEA,color:#fff,stroke:#6B46C1,stroke-width:2px;
+
+    subgraph TRIG["1 &nbsp; TRIGGER"]
+        T1["📅 Calendar detects<br/>quarterly meeting"]:::auto
+        T2["📋 Look up<br/>client profile"]:::auto
+    end
+
+    subgraph DATA["2 &nbsp; DATA COLLECTION"]
+        D1["📥 Pull Karbon<br/>pending items"]:::auto
+        DQ{"Accounting<br/>access?"}:::auto
+        DA["📊 Auto-pull P&amp;L +<br/>Balance Sheet<br/>QBO / Xero"]:::auto
+        DB["📨 Karbon client request<br/>auto-reminders"]:::auto
+        DC["⬆️ Client uploads<br/>documents"]:::client
+        DD["🤖 AI parses<br/>uploaded files"]:::auto
+        P1["🧾 Download pay stubs<br/>+ drop in folder"]:::manual
+        P2["🤖 AI reads pay stub<br/>→ withholding"]:::ai
+        Q1["❓ Send pre-meeting<br/>questionnaire"]:::auto
+        Q2["✍️ Client answers<br/>questions"]:::client
+        HUB["🗂️ All data collected<br/>+ filed in Drive"]:::auto
+    end
+
+    subgraph PROC["3 &nbsp; PROCESSING &amp; CALCULATION"]
+        R1["🏦 Bank feed<br/>health check"]:::ai
+        R2["📑 Virtual rules engine<br/>categorizes txns"]:::auto
+        R2b["✅ Approve new<br/>rule suggestions"]:::ai
+        R3["🔁 AI proposes<br/>reclassification list"]:::ai
+        R3b["✅ Approve<br/>reclassification"]:::ai
+        R3c["⚙️ Apply to QBO in bulk<br/>+ audit log"]:::auto
+        R4["🧮 Populate tax<br/>estimate"]:::ai
+        R5["⚖️ Entity comparison<br/>with / without C-Corp"]:::ai
+        R6["📚 Blue J + Claude<br/>research memo"]:::ai
+        R7["📈 Build client<br/>scorecard"]:::ai
+    end
+
+    subgraph OUT["4 &nbsp; OUTPUT &amp; APPROVAL"]
+        O1["📝 Draft meeting<br/>agenda"]:::ai
+        GATE["🔐 APPROVAL GATE<br/>You approve the prep"]:::gate
+        O2["📄 Generate docs<br/>+ slides"]:::auto
+        O3["✅ Create Karbon<br/>work items"]:::auto
+        O4["⏰ Schedule payment<br/>reminders"]:::auto
+        O5["📧 Notify you:<br/>prep ready"]:::auto
+    end
+
+    MEET["🤝 CLIENT MEETING"]:::manual
+
+    subgraph POST["5 &nbsp; POST-MEETING"]
+        PM1["🎙️ Fathom<br/>transcript"]:::auto
+        PM2["🤖 AI extracts<br/>action items"]:::auto
+        PM3["✅ Karbon tasks<br/>+ meeting notes"]:::auto
+        PM4["📧 Draft follow-up<br/>email"]:::ai
+        PM4b["✅ Approve + send"]:::ai
+    end
+
+    MON["📊 Run log + Looker Studio<br/>dashboard (every run logs here)"]:::auto
+
+    T1 --> T2
+    T2 --> D1
+    T2 --> DQ
+    T2 --> P1
+    T2 --> Q1
+    DQ -->|API| DA
+    DQ -->|No API| DB
+    DB --> DC --> DD
+    P1 --> P2
+    Q1 --> Q2
+    D1 --> HUB
+    DA --> HUB
+    DD --> HUB
+    P2 --> HUB
+
+    HUB --> R1 --> R2 --> R2b --> R3 --> R3b --> R3c --> R4 --> R5 --> R6 --> R7
+    R7 --> O1
+    Q2 --> O1
+    O1 --> GATE
+    GATE -->|Request changes| O1
+    GATE -->|Approve| O2 --> O3 --> O4 --> O5
+    O5 --> MEET
+    MEET --> PM1 --> PM2 --> PM3
+    PM2 --> PM4 --> PM4b
+
+    T2 -.-> MON
+    R3c -.-> MON
+    PM3 -.-> MON
+</pre>
+</div>
+
+<h2>Step-by-Step: Who Does What</h2>
+<table>
+  <thead><tr><th style="width:34%">Step</th><th style="width:46%">What Happens</th><th style="width:20%">Type</th></tr></thead>
+  <tbody>
+    <tr><td>Calendar trigger</td><td>System spots the quarterly meeting 24-48 hrs out and starts the prep</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Client profile lookup</td><td>Reads the client's setup to decide how to route everything</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Karbon pending items</td><td>Pulls open work items and recent communications</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Financial data (with access)</td><td>Auto-pulls P&amp;L and Balance Sheet from QuickBooks / Xero</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Financial data (no access)</td><td>Karbon sends the client a document request that auto-reminds until they upload</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Client uploads docs</td><td>Client drops financials into their secure folder</td><td><span class="tag t-client">Client</span></td></tr>
+    <tr><td>Parse uploaded docs</td><td>AI reads whatever format arrives and structures the numbers</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Download pay stubs</td><td>You/an admin download pay stubs and drop them in the folder — no payroll logins on our side</td><td><span class="tag t-manual">Manual</span></td></tr>
+    <tr><td>Read pay stubs</td><td>AI reads the uploaded stubs and fills withholding into the calculator</td><td><span class="tag t-ai">AI + Review</span></td></tr>
+    <tr><td>Pre-meeting questionnaire</td><td>System sends 3-5 questions; answers feed the agenda</td><td><span class="tag t-auto">Automatic</span> <span class="tag t-client">Client</span></td></tr>
+    <tr><td>Bank feed health check</td><td>Flags sync issues and categorization problems for you to review</td><td><span class="tag t-ai">AI + Review</span></td></tr>
+    <tr><td>Categorization rules</td><td>n8n's own rules engine categorizes transactions; AI suggests new rules, you approve</td><td><span class="tag t-ai">AI + Review</span></td></tr>
+    <tr><td>Reclassify transactions</td><td>AI proposes the full list; you tick approve; system applies to QuickBooks in bulk with an audit log</td><td><span class="tag t-ai">AI + Review</span></td></tr>
+    <tr><td>Tax estimation</td><td>Auto-populates the calculator and runs projections; you review the judgment calls</td><td><span class="tag t-ai">AI + Review</span></td></tr>
+    <tr><td>Entity comparison</td><td>Runs the with/without C-Corp scenarios; you verify assumptions</td><td><span class="tag t-ai">AI + Review</span></td></tr>
+    <tr><td>Tax strategy research</td><td>Blue J + Claude produce a cited memo; you validate every conclusion</td><td><span class="tag t-ai">AI + Review</span></td></tr>
+    <tr><td>Client scorecard</td><td>Calculates the 4 metrics and writes the narrative; you review</td><td><span class="tag t-ai">AI + Review</span></td></tr>
+    <tr><td>Meeting agenda</td><td>Drafts the full agenda from everything collected; you customize</td><td><span class="tag t-ai">AI + Review</span></td></tr>
+    <tr><td>Approval gate</td><td>Nothing client-facing goes out until you click Approve</td><td><span class="tag t-gate">Gate</span></td></tr>
+    <tr><td>Generate docs / slides</td><td>Builds the final agenda doc and presentation</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Create Karbon tasks</td><td>Auto-creates work items for anything needing team action</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Schedule payment reminders</td><td>Queues reminders before each federal/state due date with amounts + links</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Notify you</td><td>Sends the prep-ready email with links</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Client meeting</td><td>The advisory conversation — fully yours</td><td><span class="tag t-manual">Manual</span></td></tr>
+    <tr><td>Fathom transcript</td><td>Records and transcribes the meeting</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Extract action items</td><td>AI pulls action items from the transcript</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Karbon tasks + notes</td><td>Creates follow-up tasks and logs meeting notes</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Follow-up email</td><td>Drafts the client follow-up; you approve before it sends</td><td><span class="tag t-ai">AI + Review</span></td></tr>
+    <tr><td>Monitoring dashboard</td><td>Every run logs to a live dashboard showing status, gaps, and upcoming meetings</td><td><span class="tag t-auto">Automatic</span></td></tr>
+  </tbody>
+</table>
+
+<div class="footer">
+  <p>Confidential — Prepared for internal review only</p>
+  <p>To save as PDF: open this file in a browser → File → Print → Save as PDF</p>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad:true, theme:'base',
+    themeVariables:{
+      fontFamily:'Inter, sans-serif', fontSize:'13px',
+      lineColor:'#A0AEC0', primaryColor:'#EDF2F7', primaryTextColor:'#1a1a2e', primaryBorderColor:'#CBD5E0'
+    },
+    flowchart:{ htmlLabels:true, curve:'basis', nodeSpacing:34, rankSpacing:42 }
+  });
+</script>
+</body>
+</html>
