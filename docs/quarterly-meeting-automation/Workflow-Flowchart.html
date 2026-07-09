@@ -60,7 +60,7 @@
 
 <h1>Quarterly Meeting Prep — Workflow Flowchart</h1>
 <p class="subtitle">What the system does end-to-end, and who does each part</p>
-<p class="date-line">Version 1.1 &nbsp;|&nbsp; Confidential</p>
+<p class="date-line">Version 2.0 &nbsp;|&nbsp; Confidential</p>
 
 <h2>How to Read This</h2>
 <div class="legend">
@@ -72,12 +72,12 @@
 </div>
 
 <div class="counts">
-  <div class="count-card"><div class="n n-auto">4</div><div class="l">Fully Automatic</div></div>
-  <div class="count-card"><div class="n n-ai">9</div><div class="l">AI-Assisted (You Review)</div></div>
-  <div class="count-card"><div class="n n-manual">1</div><div class="l">Manual (Team)</div></div>
-  <div class="count-card"><div class="n n-client">—</div><div class="l">Client Touchpoints</div></div>
+  <div class="count-card"><div class="n n-auto">13/14</div><div class="l">Core Steps Automated</div></div>
+  <div class="count-card"><div class="n n-ai">9</div><div class="l">Net-New Intelligence Feeds</div></div>
+  <div class="count-card"><div class="n n-manual">1</div><div class="l">Manual Step (Payroll, By Choice)</div></div>
+  <div class="count-card"><div class="n n-client">2</div><div class="l">Client Touchpoints</div></div>
 </div>
-<p style="font-size:13px; color:#718096;">Counts reflect the 14 core prep steps. Client touchpoints (document uploads, questionnaire) and approval gates are supporting steps layered on top.</p>
+<p style="font-size:13px; color:#718096;">Of Karen's original 14 prep steps, 13 are automated (4 fully automatic, 9 AI-assisted with her review). Version 2.0 also adds nine intelligence capabilities she previously had no time to do manually — email review, transcript review, tax return mining, strategy screening, and more — all automated.</p>
 
 <h2>The Full Workflow</h2>
 <div class="mermaid-container">
@@ -89,15 +89,21 @@ flowchart TD
     classDef client fill:#4299E1,color:#fff,stroke:#2B6CB0,stroke-width:1px;
     classDef gate fill:#9F7AEA,color:#fff,stroke:#6B46C1,stroke-width:2px;
 
-    subgraph TRIG["1 &nbsp; TRIGGER"]
+    subgraph TRIG["1 &nbsp; TRIGGER — 48 HOURS BEFORE THE MEETING"]
         T1["📅 Calendar detects<br/>quarterly meeting"]:::auto
-        T2["📋 Look up<br/>client profile"]:::auto
+        T2["📋 Look up client profile<br/>Karbon + Google Sheet"]:::auto
+        K1["💬 Ask Karen:<br/>any updates for this client?"]:::auto
+        K2["✍️ Karen replies<br/>(optional, 2 min)"]:::manual
     end
 
-    subgraph DATA["2 &nbsp; DATA COLLECTION"]
-        D1["📥 Pull Karbon<br/>pending items"]:::auto
+    subgraph DATA["2 &nbsp; DATA COLLECTION — EVERYTHING SINCE THE LAST MEETING"]
+        D1["📥 Karbon work items:<br/>open + completed<br/>since last meeting"]:::auto
+        E1["📧 Client emails since<br/>last meeting → AI digest<br/>commitments, questions, changes"]:::auto
+        F1["🎙️ Last meeting transcript →<br/>promises made, strategies discussed<br/>Done / Pending / Blocked"]:::auto
+        TX1["🗄️ Tax returns + prior plans →<br/>AI extracts carryforwards, elections,<br/>safe harbor, rates"]:::auto
+        FI1["📁 Full client file inventory<br/>+ PMT schedule status"]:::auto
         DQ{"Accounting<br/>access?"}:::auto
-        DA["📊 Auto-pull P&amp;L +<br/>Balance Sheet<br/>QBO / Xero"]:::auto
+        DA["📊 Auto-pull P&amp;L, Balance Sheet,<br/>A/R + A/P aging<br/>QBO / Xero"]:::auto
         DB["📨 Karbon client request<br/>auto-reminders"]:::auto
         DC["⬆️ Client uploads<br/>documents"]:::client
         DD["🤖 AI parses<br/>uploaded files"]:::auto
@@ -105,26 +111,24 @@ flowchart TD
         P2["🤖 AI reads pay stub<br/>→ withholding"]:::ai
         Q1["❓ Send pre-meeting<br/>questionnaire"]:::auto
         Q2["✍️ Client answers<br/>questions"]:::client
-        HUB["🗂️ All data collected<br/>+ filed in Drive"]:::auto
+        HUB["🗂️ Complete client picture<br/>collected + filed"]:::auto
     end
 
-    subgraph PROC["3 &nbsp; PROCESSING &amp; CALCULATION"]
-        R1["🏦 Bank feed<br/>health check"]:::ai
+    subgraph PROC["3 &nbsp; PROCESSING &amp; ANALYSIS"]
+        R1["🏦 Books health report:<br/>close status, uncategorized txns,<br/>reconciliation, aging"]:::ai
         R2["📑 Virtual rules engine<br/>categorizes txns"]:::auto
-        R2b["✅ Approve new<br/>rule suggestions"]:::ai
-        R3["🔁 AI proposes<br/>reclassification list"]:::ai
-        R3b["✅ Approve<br/>reclassification"]:::ai
-        R3c["⚙️ Apply to QBO in bulk<br/>+ audit log"]:::auto
-        R4["🧮 Populate tax<br/>estimate"]:::ai
+        R3["🔁 AI proposes reclassification<br/>→ you approve<br/>→ applied to QBO + audit log"]:::ai
+        R4["🧮 Tax estimate<br/>+ safe harbor check"]:::ai
         R5["⚖️ Entity comparison<br/>with / without C-Corp"]:::ai
-        R6["📚 Blue J + Claude<br/>research memo"]:::ai
-        R7["📈 Build client<br/>scorecard"]:::ai
+        SS["🎯 TAX STRATEGY SCREENER<br/>15+ strategy library vs fresh data<br/>→ ranked opportunities w/ est. savings"]:::ai
+        R6["📚 Blue J + Claude memo<br/>for top strategies"]:::ai
+        R7["📈 Client scorecard<br/>+ financial review"]:::ai
     end
 
-    subgraph OUT["4 &nbsp; OUTPUT &amp; APPROVAL"]
-        O1["📝 Draft meeting<br/>agenda"]:::ai
-        GATE["🔐 APPROVAL GATE<br/>You approve the prep"]:::gate
-        O2["📄 Generate docs<br/>+ slides"]:::auto
+    subgraph OUT["4 &nbsp; MEETING BRIEF, DECK &amp; APPROVAL"]
+        BRIEF["📕 MEETING BRIEF<br/>Executive summary · Since last meeting<br/>Follow-ups · Financial + CFO review<br/>Books health · Tax position + PMT status<br/>Strategy opportunities · Talking points<br/>Questions for client"]:::ai
+        GATE["🔐 APPROVAL GATE<br/>You review + approve"]:::gate
+        DECK["🎬 Presentation deck<br/>Google Slides (or Gamma)"]:::auto
         O3["✅ Create Karbon<br/>work items"]:::auto
         O4["⏰ Schedule payment<br/>reminders"]:::auto
         O5["📧 Notify you:<br/>prep ready"]:::auto
@@ -134,16 +138,20 @@ flowchart TD
 
     subgraph POST["5 &nbsp; POST-MEETING"]
         PM1["🎙️ Fathom<br/>transcript"]:::auto
-        PM2["🤖 AI extracts<br/>action items"]:::auto
+        PM2["🤖 AI extracts action items<br/>+ stores transcript link<br/>for next quarter's prep"]:::auto
         PM3["✅ Karbon tasks<br/>+ meeting notes"]:::auto
-        PM4["📧 Draft follow-up<br/>email"]:::ai
-        PM4b["✅ Approve + send"]:::ai
+        PM4["📧 Draft follow-up email<br/>→ you approve + send"]:::ai
     end
 
-    MON["📊 Run log + Looker Studio<br/>dashboard (every run logs here)"]:::auto
+    MON["📊 Run log + Looker Studio dashboard<br/>(every run logs here)"]:::auto
 
     T1 --> T2
+    T2 --> K1 --> K2
     T2 --> D1
+    T2 --> E1
+    T2 --> F1
+    T2 --> TX1
+    T2 --> FI1
     T2 --> DQ
     T2 --> P1
     T2 --> Q1
@@ -153,22 +161,28 @@ flowchart TD
     P1 --> P2
     Q1 --> Q2
     D1 --> HUB
+    E1 --> HUB
+    F1 --> HUB
+    TX1 --> HUB
+    FI1 --> HUB
     DA --> HUB
     DD --> HUB
     P2 --> HUB
+    K2 --> HUB
 
-    HUB --> R1 --> R2 --> R2b --> R3 --> R3b --> R3c --> R4 --> R5 --> R6 --> R7
-    R7 --> O1
-    Q2 --> O1
-    O1 --> GATE
-    GATE -->|Request changes| O1
-    GATE -->|Approve| O2 --> O3 --> O4 --> O5
+    HUB --> R1 --> R2 --> R3 --> R4 --> R5 --> SS --> R6 --> R7
+    R7 --> BRIEF
+    Q2 --> BRIEF
+    BRIEF --> GATE
+    GATE -->|Request changes| BRIEF
+    GATE -->|Approve| DECK --> O3 --> O4 --> O5
     O5 --> MEET
     MEET --> PM1 --> PM2 --> PM3
-    PM2 --> PM4 --> PM4b
+    PM2 --> PM4
+    PM2 -.->|"transcript feeds<br/>next quarter"| F1
 
     T2 -.-> MON
-    R3c -.-> MON
+    R3 -.-> MON
     PM3 -.-> MON
 </pre>
 </div>
@@ -179,7 +193,12 @@ flowchart TD
   <tbody>
     <tr><td>Calendar trigger</td><td>System spots the quarterly meeting 24-48 hrs out and starts the prep</td><td><span class="tag t-auto">Automatic</span></td></tr>
     <tr><td>Client profile lookup</td><td>Reads the client's setup to decide how to route everything</td><td><span class="tag t-auto">Automatic</span></td></tr>
-    <tr><td>Karbon pending items</td><td>Pulls open work items and recent communications</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Karbon work items</td><td>Pulls open items AND everything completed since the last meeting — the "what we've done for you" story</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Client email digest</td><td>Reads all client emails since the last meeting; digests commitments, open questions, and changes mentioned</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Last-meeting recap</td><td>Reads the prior meeting's transcript; lists every promise made and marks each Done / Pending / Blocked against Karbon</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Tax return intelligence</td><td>Reads the client's tax returns and prior plans; extracts carryforwards, elections, safe harbor targets, rates</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Client file inventory</td><td>Scans the full client folder (PMT schedule, entity docs); reports payment schedule status</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Karen input prompt</td><td>Asks Karen "any updates for this client?" — her 2-minute reply is folded into the brief (optional)</td><td><span class="tag t-manual">Manual</span></td></tr>
     <tr><td>Financial data (with access)</td><td>Auto-pulls P&amp;L and Balance Sheet from QuickBooks / Xero</td><td><span class="tag t-auto">Automatic</span></td></tr>
     <tr><td>Financial data (no access)</td><td>Karbon sends the client a document request that auto-reminds until they upload</td><td><span class="tag t-auto">Automatic</span></td></tr>
     <tr><td>Client uploads docs</td><td>Client drops financials into their secure folder</td><td><span class="tag t-client">Client</span></td></tr>
@@ -187,22 +206,23 @@ flowchart TD
     <tr><td>Download pay stubs</td><td>You/an admin download pay stubs and drop them in the folder — no payroll logins on our side</td><td><span class="tag t-manual">Manual</span></td></tr>
     <tr><td>Read pay stubs</td><td>AI reads the uploaded stubs and fills withholding into the calculator</td><td><span class="tag t-ai">AI + Review</span></td></tr>
     <tr><td>Pre-meeting questionnaire</td><td>System sends 3-5 questions; answers feed the agenda</td><td><span class="tag t-auto">Automatic</span> <span class="tag t-client">Client</span></td></tr>
-    <tr><td>Bank feed health check</td><td>Flags sync issues and categorization problems for you to review</td><td><span class="tag t-ai">AI + Review</span></td></tr>
+    <tr><td>Books health report</td><td>Month-end close status, uncategorized transactions, reconciliation dates, A/R + A/P aging, anomalies</td><td><span class="tag t-ai">AI + Review</span></td></tr>
     <tr><td>Categorization rules</td><td>n8n's own rules engine categorizes transactions; AI suggests new rules, you approve</td><td><span class="tag t-ai">AI + Review</span></td></tr>
     <tr><td>Reclassify transactions</td><td>AI proposes the full list; you tick approve; system applies to QuickBooks in bulk with an audit log</td><td><span class="tag t-ai">AI + Review</span></td></tr>
     <tr><td>Tax estimation</td><td>Auto-populates the calculator and runs projections; you review the judgment calls</td><td><span class="tag t-ai">AI + Review</span></td></tr>
     <tr><td>Entity comparison</td><td>Runs the with/without C-Corp scenarios; you verify assumptions</td><td><span class="tag t-ai">AI + Review</span></td></tr>
-    <tr><td>Tax strategy research</td><td>Blue J + Claude produce a cited memo; you validate every conclusion</td><td><span class="tag t-ai">AI + Review</span></td></tr>
+    <tr><td>Tax strategy screener</td><td>Screens a 15+ strategy library against the client's fresh data; surfaces ranked opportunities with estimated savings</td><td><span class="tag t-ai">AI + Review</span></td></tr>
+    <tr><td>Tax strategy research</td><td>Blue J + Claude produce a cited memo for the top strategies; you validate every conclusion</td><td><span class="tag t-ai">AI + Review</span></td></tr>
     <tr><td>Client scorecard</td><td>Calculates the 4 metrics and writes the narrative; you review</td><td><span class="tag t-ai">AI + Review</span></td></tr>
-    <tr><td>Meeting agenda</td><td>Drafts the full agenda from everything collected; you customize</td><td><span class="tag t-ai">AI + Review</span></td></tr>
+    <tr><td>Meeting Brief</td><td>Compiles everything into one document: executive summary, since-last-meeting, follow-ups, financial + CFO review, books health, tax position + PMT status, strategy opportunities, talking points, client questions</td><td><span class="tag t-ai">AI + Review</span></td></tr>
     <tr><td>Approval gate</td><td>Nothing client-facing goes out until you click Approve</td><td><span class="tag t-gate">Gate</span></td></tr>
-    <tr><td>Generate docs / slides</td><td>Builds the final agenda doc and presentation</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Presentation deck</td><td>Builds the client-facing deck from the approved brief — Google Slides template (or Gamma for a polished AI-generated deck)</td><td><span class="tag t-auto">Automatic</span></td></tr>
     <tr><td>Create Karbon tasks</td><td>Auto-creates work items for anything needing team action</td><td><span class="tag t-auto">Automatic</span></td></tr>
     <tr><td>Schedule payment reminders</td><td>Queues reminders before each federal/state due date with amounts + links</td><td><span class="tag t-auto">Automatic</span></td></tr>
     <tr><td>Notify you</td><td>Sends the prep-ready email with links</td><td><span class="tag t-auto">Automatic</span></td></tr>
     <tr><td>Client meeting</td><td>The advisory conversation — fully yours</td><td><span class="tag t-manual">Manual</span></td></tr>
     <tr><td>Fathom transcript</td><td>Records and transcribes the meeting</td><td><span class="tag t-auto">Automatic</span></td></tr>
-    <tr><td>Extract action items</td><td>AI pulls action items from the transcript</td><td><span class="tag t-auto">Automatic</span></td></tr>
+    <tr><td>Extract action items</td><td>AI pulls action items from the transcript and stores the transcript link so it feeds next quarter's prep automatically</td><td><span class="tag t-auto">Automatic</span></td></tr>
     <tr><td>Karbon tasks + notes</td><td>Creates follow-up tasks and logs meeting notes</td><td><span class="tag t-auto">Automatic</span></td></tr>
     <tr><td>Follow-up email</td><td>Drafts the client follow-up; you approve before it sends</td><td><span class="tag t-ai">AI + Review</span></td></tr>
     <tr><td>Monitoring dashboard</td><td>Every run logs to a live dashboard showing status, gaps, and upcoming meetings</td><td><span class="tag t-auto">Automatic</span></td></tr>

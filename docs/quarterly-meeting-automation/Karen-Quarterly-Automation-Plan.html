@@ -302,7 +302,7 @@
 <p class="date-line">Prepared June 2026 &nbsp;|&nbsp; Confidential</p>
 
 <div class="summary-box">
-  <p><strong>What is this?</strong> A plan to automate the quarterly client meeting preparation process — the data gathering, tax calculations, scorecard building, and agenda writing that happens before every client meeting.</p>
+  <p><strong>What is this?</strong> A plan to automate the quarterly client meeting preparation process — the system gathers everything about the client since the last meeting (emails, the last meeting's transcript, work completed, tax returns, QuickBooks data, client files), runs the tax calculations and strategy screening, and hands you a complete Meeting Brief and presentation deck before every meeting.</p>
   <p><strong>The goal:</strong> Reduce prep time from <strong>~90 minutes per client</strong> down to <strong>~30 minutes</strong> (a quick manual payroll download plus review), while keeping all the professional judgment and client relationships fully in your hands.</p>
   <p><strong>No new software needed.</strong> Everything is built using tools already in the tech stack.</p>
 </div>
@@ -507,27 +507,40 @@ flowchart TD
 <div class="page-break"></div>
 <h2>5. What You Get Before Every Meeting</h2>
 
-<p>24-48 hours before any quarterly meeting, you receive an email with links to a complete prep package:</p>
+<p>Two days (48 hours) before any quarterly meeting, the system reads <strong>everything that happened since the last meeting</strong> before writing a single word:</p>
+
+<ul style="margin-bottom:16px;">
+  <li style="margin-bottom:6px;"><strong>Every client email</strong> since the last meeting — digested into commitments made, questions asked, and changes mentioned</li>
+  <li style="margin-bottom:6px;"><strong>The last meeting's transcript</strong> — every promise made, marked Done / Pending / Blocked against Karbon</li>
+  <li style="margin-bottom:6px;"><strong>Karbon work items</strong> — both what's still open AND what we've completed for the client since last time</li>
+  <li style="margin-bottom:6px;"><strong>Tax returns and prior plans</strong> — carryforwards, elections, safe harbor targets, rates extracted automatically</li>
+  <li style="margin-bottom:6px;"><strong>QuickBooks</strong> — P&amp;L, Balance Sheet, A/R and A/P aging, month-end close status, uncategorized transactions</li>
+  <li style="margin-bottom:6px;"><strong>The full client folder</strong> — including the PMT schedule, so the brief answers "does Christina know what to pay?"</li>
+  <li style="margin-bottom:6px;"><strong>Your input</strong> — a 2-minute "any updates for this client?" prompt, folded into the brief if you reply</li>
+  <li style="margin-bottom:6px;"><strong>The client's own answers</strong> — from the pre-meeting questionnaire</li>
+</ul>
+
+<p>Then it compiles the complete prep package:</p>
 
 <div class="mermaid-container">
 <pre class="mermaid">
 flowchart TD
-    A["📦 Meeting Prep Package"] --> B["📊 Client Scorecard"]
+    A["📦 Meeting Prep Package"] --> BR["📕 Meeting Brief"]
+    A --> DK["🎬 Presentation Deck"]
     A --> C["🧮 Tax Calculator"]
-    A --> D["📋 Meeting Agenda"]
     A --> E["✅ Task List"]
     A --> F["⚠️ Flags"]
 
-    B --> B1["Revenue: up/down vs last year\nProfit margin trend\nOwner take-home\n+ plain-English explanation"]
+    BR --> BR1["Executive summary\nSince last meeting: emails, promises,\nwork completed\nFollow-up items\nFinancial + CFO review with scorecard\nBooks health: close items, uncategorized\nTax position + PMT schedule status\nStrategy opportunities w/ est. savings\nKey talking points\nQuestions for the client"]
+    DK --> DK1["Client-facing slides built from\nthe approved brief\nGoogle Slides or Gamma"]
     C --> C1["Quarterly payment amounts\nFederal + State + PTE\nEntity comparison if applicable\nAI validation notes"]
-    D --> D1["Quick Win to highlight\nScorecard summary\nPayment due dates\nNext 90 days plan\nOpen items"]
     E --> E1["Work items auto-created\nin Karbon for your team"]
     F --> F1["Data gaps or missing info\nUnusual numbers flagged\nItems needing your judgment"]
 
     style A fill:#2D3748,color:#fff,stroke:none
-    style B fill:#48BB78,color:#fff,stroke:none
+    style BR fill:#9F7AEA,color:#fff,stroke:none
+    style DK fill:#48BB78,color:#fff,stroke:none
     style C fill:#4299E1,color:#fff,stroke:none
-    style D fill:#9F7AEA,color:#fff,stroke:none
     style E fill:#ED8936,color:#fff,stroke:none
     style F fill:#FC8181,color:#fff,stroke:none
 </pre>
@@ -695,6 +708,7 @@ pie title How the 14 Steps Break Down
   <div class="sw-item"><strong>Karbon</strong><br><span>Pulls pending items, auto-creates work items/tasks, sends client document requests with auto-reminders</span></div>
   <div class="sw-item"><strong>Blue J</strong><br><span>AI tax research with citations — powers the strategy research memos</span></div>
   <div class="sw-item"><strong>Looker Studio</strong><br><span>Free Google dashboard — live prep status across all clients</span></div>
+  <div class="sw-item"><strong>Gamma</strong><br><span>Optional — AI-generated presentation decks from the approved brief</span></div>
   <div class="sw-item"><strong>GoHighLevel</strong><br><span>Sends templated client emails</span></div>
   <div class="sw-item"><strong>Claude AI</strong><br><span>Parses data, validates calculations, writes agendas</span></div>
   <div class="sw-item"><strong>Fathom</strong><br><span>Meeting transcription and action item extraction</span></div>
@@ -712,13 +726,13 @@ pie title How the 14 Steps Break Down
 <div class="timeline-item">
   <div class="week">Week 1</div>
   <div class="title">Foundation & Data Collection</div>
-  <div class="desc">Set up the Client Profile spreadsheet, email templates, and folder structure. Build the auto-pulls from QuickBooks and Xero, the Karbon pending-items pull, Karbon client document requests with auto-reminders, and the file intake detection. (Payroll stays a manual download for now.)</div>
+  <div class="desc">Set up the Client Profile spreadsheet, email templates, and folder structure. Build the auto-pulls from QuickBooks and Xero, the Karbon work-items pull (open + completed), the client email digest, the last-meeting transcript recap, tax return intelligence, the full client file inventory, Karbon client document requests with auto-reminders, and file intake detection. (Payroll stays a manual download for now.)</div>
 </div>
 
 <div class="timeline-item">
   <div class="week">Week 2</div>
   <div class="title">Processing & Meeting Output</div>
-  <div class="desc">Build the tax estimation templates, entity comparison model, and scorecard generator with AI. The reclassification approve-and-apply engine and the categorization rules engine. Then the agenda generator (with Blue J research memos and questionnaire answers), presentation slides, Karbon task auto-creation, one-click approvals, payment reminders, notifications, and Fathom post-meeting processing.</div>
+  <div class="desc">Build the tax estimation templates, entity comparison model, and scorecard generator with AI. The reclassification approve-and-apply engine, the categorization rules engine, and the books health report. The tax strategy screener with its strategy library. Then the Meeting Brief compiler (with Blue J research memos, questionnaire answers, and your input prompt), the presentation deck generator, Karbon task auto-creation, one-click approvals, payment reminders, notifications, and Fathom post-meeting processing.</div>
 </div>
 
 <div class="timeline-item">
