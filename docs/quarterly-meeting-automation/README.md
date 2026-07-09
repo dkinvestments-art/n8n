@@ -19,6 +19,7 @@ developer to build the quarterly meeting preparation automation system.
 |----------|---------|----------------------|
 | [03 — Developer Requirements Spec](./03-Developer-Requirements-Specification.md) | Complete technical specification and SOW | Yes — primary development reference |
 | [05 — Comprehensive Workflow Documentation](./05-Comprehensive-Workflow-Documentation.md) | Full process documentation with visual diagrams | Yes — reference for understanding the system |
+| [Strategy Library](./strategy-library/README.md) | Seed content for the Tax Strategy Screener: 36 strategies as importable CSVs + review instructions | Yes — developer imports; Firm reviews & approves rows |
 
 ## Engagement Sequence
 

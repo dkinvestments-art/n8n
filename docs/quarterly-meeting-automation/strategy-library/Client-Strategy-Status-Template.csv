@@ -1,0 +1,5 @@
+client_id,client_name,strategy_id,status,date_updated,est_annual_savings,notes
+EXAMPLE-001,"Example Client A",ST-002,implemented,2026-01-15,"$12,400","PTE election filed with 2025 CA return; June prepay scheduled"
+EXAMPLE-001,"Example Client A",ST-013,candidate,2026-07-09,"$28,000","Cost seg quoted; pending decision on building purchase"
+EXAMPLE-001,"Example Client A",ST-018,rejected,2026-04-02,"","Client declined — home not suitable for business meetings"
+EXAMPLE-002,"Example Client B",ST-020,candidate,2026-07-09,"$19,500","Closely-held C-Corp confirmed non-PSC; real estate LLC under review"
