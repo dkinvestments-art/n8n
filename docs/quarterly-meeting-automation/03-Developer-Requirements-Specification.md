@@ -2,7 +2,7 @@
 
 ## Quarterly Client Meeting Preparation — Automation System
 
-**Version:** 1.1
+**Version:** 2.0
 **Date:** _______________
 **Prepared by:** _______________
 **For:** Third-Party Developer Engagement
@@ -24,10 +24,24 @@ meeting preparation time from approximately 75-90 minutes per client to
 15-20 minutes of review-only time, while maintaining full IRS compliance
 and supporting clients with varying technology setups.
 
+**v2.0 scope expansion:** the system must ingest ALL current client
+intelligence — client communications, the prior meeting transcript, tax
+returns and prior tax plans, the full client file folder, books health, and
+a quarterly tax strategy screen — and produce a complete **Meeting Brief**
+plus a **presentation deck** as the primary deliverables (the plain agenda
+of v1.x becomes one section of the brief).
+
 ### 1.3 Key Constraint
 **The Developer will never have access to real client data.** All development
 and testing must use synthetic/sandbox data. The Firm will connect production
 systems and validate with real data after handoff.
+
+**Compliance note (v2.0):** all new ingestion introduced in this version
+(client emails, tax returns, prior tax plans, meeting transcripts) is
+processed exclusively within firm-controlled systems — the Firm's own n8n
+instance and the Firm's own AI API accounts. Nothing changes for the
+Developer: development and testing use synthetic emails and synthetic tax
+returns; the Developer still never touches real data.
 
 ---
 
@@ -47,7 +61,8 @@ integrate with as many of these as possible.
 | **GoHighLevel** | CRM / Marketing | Yes (REST API) | Email templates and client communication |
 | **Claude AI** | AI processing | Yes (Anthropic API) | Data parsing, calculations, text generation |
 | **ChatGPT** | AI processing | Yes (OpenAI API) | Backup / alternative AI processing |
-| **Fathom** | Meeting notes | Yes (API) | Post-meeting transcription and action items |
+| **Fathom** | Meeting notes | Yes (API) | Post-meeting transcription and action items; prior-meeting transcripts also feed forward into next-meeting prep (see Sub-Workflow 13) |
+| **Gamma** | AI presentation generation | Yes (API) | Already connected by the Firm — optional polished-deck output path (see Sub-Workflow 20) |
 | **Scribe** | Process documentation | Limited | Documenting manual procedures |
 | **Antigravity** | RPA / browser automation | Varies | Fallback for systems without APIs |
 | **NotebookLM** | Research | No direct API | Secondary research tool — used to cross-check Blue J findings |
@@ -62,7 +77,7 @@ the core system:
   edits if QBO API batch/sparse updates prove insufficient (see
   Sub-Workflow 9)
 - **Looker Studio** (free) — monitoring dashboard on top of the Client
-  Profile Matrix and run log (see Section 4.13)
+  Profile Matrix and run log (see Section 4.22)
 
 ---
 
@@ -89,6 +104,16 @@ bookkeeper_email        - Who to request financials from (if no API)
 client_email            - Primary client email
 meeting_cadence         - Quarterly | Monthly | Semi_Annual
 google_drive_folder     - Link to client's document folder
+gmail_query_alias       - Email search identifier (from/to alias used for the
+                          Gmail API fallback search — see Sub-Workflow 12)
+drive_tax_folder        - Link to the client's tax documents folder (returns,
+                          prior tax plans — see Sub-Workflow 14)
+pmt_file_link           - Link to the client's payment (PMT) schedule file
+                          (see Sub-Workflow 15)
+last_meeting_transcript_link - Link to the prior meeting's Fathom transcript
+                          + summary (auto-maintained by the post-meeting
+                          workflow, Sub-Workflow 8 — consumed by
+                          Sub-Workflow 13)
 karbon_client_id        - Karbon identifier (used for both client lookup and work item creation)
 karbon_work_template    - Karbon work template to use when creating work items
 has_c_corp              - Yes | No (drives entity comparison model)
@@ -124,6 +149,28 @@ IF entity_type = "Multi-Entity" OR has_c_corp = "Yes"
     → Include entity comparison model
 ELSE
     → Use single-entity tax calculation template
+
+IF client communications are available in Karbon
+    → Pull email threads since last_meeting_date via Karbon API
+       (Sub-Workflow 12, primary path)
+ELSE
+    → FALLBACK: Gmail API search using gmail_query_alias
+       (from/to client email since last_meeting_date)
+
+IF last_meeting_transcript_link is populated
+    → Run Last-Meeting Recap (Sub-Workflow 13)
+ELSE
+    → Note "first automated cycle — no prior transcript on file" in the brief
+
+IF drive_tax_folder is populated
+    → Run Tax Document Intelligence (Sub-Workflow 14)
+ELSE
+    → Flag "tax documents folder not configured" for manual setup
+
+IF pmt_file_link is populated
+    → Extract PMT schedule status in the file inventory (Sub-Workflow 15)
+ELSE
+    → Flag "no PMT schedule file on record" in the brief's Tax Position section
 ```
 
 ---
@@ -132,29 +179,44 @@ ELSE
 
 ### 4.1 Master Workflow: Quarterly Meeting Prep Pipeline
 
-**Trigger:** Google Calendar event detected 24-48 hours before an event
-containing the keyword "Quarterly" or tagged with a specific label.
+**Trigger:** Google Calendar event detected 48 hours (two days) before the
+meeting — an event containing the keyword "Quarterly" or tagged with a
+specific label.
 
 **Input:** Client name from the calendar event (used to look up Client Profile)
 
 **Overall Flow:**
-1. Calendar trigger fires
+1. Calendar trigger fires (48 hours / two days before the meeting)
 2. Look up client profile in Google Sheets
 3. Alongside the meeting reminder, auto-send a short pre-meeting client
    questionnaire (3-5 questions, via Google Form or Karbon Client Request):
    major purchases this quarter, entity/life changes, questions for the
-   meeting. n8n collects responses and passes them to the agenda generator
-   (Sub-Workflow 6)
-4. Branch based on client profile (parallel where possible)
-5. Collect all data (auto-pull or request)
-6. Process data through AI
-7. Generate output documents
+   meeting. n8n collects responses and passes them to the Meeting Brief
+   Compiler / agenda section (Sub-Workflows 6 and 19). In parallel, send
+   Karen the 2-minute Preparer Input Prompt (Sub-Workflow 16 — non-blocking)
+4. Branch based on client profile
+5. Ingestion fan-out — collect all data (parallel where possible):
+   - Karbon pending items (Sub-Workflow 1)
+   - Financial data (Sub-Workflow 2)
+   - Payroll data — manual pay stub collection (Sub-Workflow 3)
+   - Client Communications Digest (Sub-Workflow 12)
+   - Last-Meeting Recap from prior Fathom transcript (Sub-Workflow 13)
+   - Tax Document Intelligence from drive_tax_folder (Sub-Workflow 14)
+   - Client File Inventory incl. PMT schedule status (Sub-Workflow 15)
+   - QBO Close & Hygiene Report (Sub-Workflow 18)
+6. Process data through AI: Tax Estimation Engine (Sub-Workflow 4),
+   Client Scorecard (Sub-Workflow 5), Tax Strategy Screener
+   (Sub-Workflow 17)
+7. Compile all upstream outputs into the **Meeting Brief**
+   (Sub-Workflow 19) and generate the **presentation deck**
+   (Sub-Workflow 20)
 8. Notify preparer that meeting prep is ready — the notification email
    includes **Approve** / **Request Changes** action links (n8n
    Wait-for-webhook / human-in-the-loop pattern)
-9. **Approval gate:** client-facing outputs (agenda copies, payment
-   reminder schedules, follow-up emails) are only released after the
-   preparer clicks Approve. "Request Changes" routes back for revision.
+9. **Approval gate:** client-facing outputs (agenda copies, the
+   presentation deck, payment reminder schedules, follow-up emails) are
+   only released after the preparer clicks Approve. "Request Changes"
+   routes back for revision.
 
 ---
 
@@ -396,6 +458,11 @@ to prior period.
 
 **Purpose:** Generate a structured quarterly meeting agenda with talking points.
 
+**Note (v2.0):** the agenda generator is no longer the standalone primary
+deliverable — it is now a **component of the Meeting Brief Compiler
+(Sub-Workflow 19)**. Its output feeds the brief's agenda-related sections
+(Key Talking Points, Questions for the Client, Next 90 Days).
+
 **Inputs:**
 - Pending items (from Sub-Workflow 1)
 - Tax estimation results (from Sub-Workflow 4)
@@ -497,11 +564,16 @@ from the Fathom transcript and create follow-up tasks.
 4. Create follow-up email draft (via Gmail or GoHighLevel) for client-owned
    action items
 5. Update Karbon with meeting notes summary
+6. Update `last_meeting_transcript_link` (and `last_meeting_date`) in the
+   Client Profile Matrix with the new Fathom transcript + summary link —
+   this feeds the next quarter's Last-Meeting Recap (Sub-Workflow 13)
 
 **Output:**
 - Karbon work items created
 - Client follow-up email draft
 - Karbon updated
+- Client Profile Matrix updated (`last_meeting_transcript_link`,
+  `last_meeting_date`)
 
 ---
 
@@ -577,7 +649,7 @@ manually inside QBO.
 **Output:**
 - Newly categorized transactions in QBO
 - Suggested rules pending human approval
-- Summary of rule hits/misses per run (feeds the run log — Section 4.13)
+- Summary of rule hits/misses per run (feeds the run log — Section 4.22)
 
 ---
 
@@ -609,7 +681,316 @@ misses an estimated payment.
 
 ---
 
-### 4.13 Monitoring & Observability Requirements
+### 4.13 Sub-Workflow 12: Client Communications Digest
+
+**Purpose:** Give the preparer a complete picture of everything said between
+the Firm and the client since the last meeting.
+
+**Inputs:**
+- `karbon_client_id`, `client_email`, `gmail_query_alias`,
+  `last_meeting_date` from Client Profile
+
+**Process:**
+1. **Primary:** pull client email threads/communications since
+   `last_meeting_date` via the Karbon API (Karbon aggregates client emails)
+2. **Fallback:** if the client's communications are not available in
+   Karbon, run a Gmail API search using `gmail_query_alias`
+   (from/to the client's email address since the last meeting)
+3. Send the collected threads to Claude AI to produce a digest covering:
+   - Commitments the Firm made
+   - Commitments the client made
+   - Questions asked — answered and unanswered
+   - Life/business changes mentioned
+   - Unresolved threads
+   - Overall sentiment
+4. Format both a structured JSON digest and a narrative summary
+
+**Output:**
+- Structured digest JSON
+- Narrative digest for the Meeting Brief ("Since Last Meeting" section)
+
+**Error Handling:**
+- If neither Karbon nor Gmail returns results: flag "no communications
+  found since last meeting — verify gmail_query_alias" and continue
+
+---
+
+### 4.14 Sub-Workflow 13: Last-Meeting Recap (Transcript Feed-Forward)
+
+**Purpose:** Feed the prior meeting forward into this one — what was
+discussed, what was promised, and what actually happened since.
+
+**Inputs:**
+- `last_meeting_transcript_link` from Client Profile (auto-maintained by
+  the post-meeting workflow, Sub-Workflow 8)
+- Karbon work items for the client (from Sub-Workflow 1)
+
+**Process:**
+1. Retrieve the prior meeting's Fathom transcript + summary via the stored
+   link
+2. Send to Claude AI to extract:
+   - Topics discussed
+   - Promises made by each side (Firm and client)
+   - Strategies discussed but not yet implemented
+   - Client questions raised
+3. Cross-reference each extracted promise against Karbon work items to
+   assign a status: **Done / Pending / Blocked**
+
+**Output:**
+- "Since Last Meeting" progress report: recap of promises with
+  Done/Pending/Blocked status, plus not-yet-implemented strategies to
+  resurface
+
+**Error Handling:**
+- If no transcript link exists (first automated cycle): note "no prior
+  transcript on file" in the brief and continue
+
+---
+
+### 4.15 Sub-Workflow 14: Tax Document Intelligence
+
+**Purpose:** Extract the client's current tax position from filed returns
+and prior tax plans, so the estimator and strategy screener work from real
+positions rather than assumptions.
+
+**Inputs:**
+- `drive_tax_folder` from Client Profile
+
+**Process:**
+1. Scan the client's `drive_tax_folder` for tax returns (federal + state,
+   business + personal) and prior tax plans
+2. Send documents to Claude AI to extract key data points:
+   - AGI and taxable income
+   - Marginal and effective tax rates
+   - Carryforwards: NOL, capital loss, charitable, credits
+   - Elections in effect: S-Corp, PTE, accounting methods
+   - Depreciation schedules / asset listings
+   - Safe harbor targets (110% of prior-year liability)
+   - Estimated payments made to date
+3. Assemble a structured **"Tax Position" JSON**
+
+**Output:**
+- Tax Position JSON — consumed by the Tax Estimation Engine
+  (Sub-Workflow 4) and the Tax Strategy Screener (Sub-Workflow 17)
+- Tax Position section content for the Meeting Brief
+
+**Error Handling:**
+- Missing or unreadable returns: flag which documents/data points are
+  missing; the estimator falls back to Client Profile / manual inputs
+
+---
+
+### 4.16 Sub-Workflow 15: Client File Inventory
+
+**Purpose:** Enumerate and triage ALL files in the client's Google Drive
+folder (not just the current quarter) so nothing relevant is missed —
+including answering "does Christina know what to pay?"
+
+**Inputs:**
+- `google_drive_folder`, `pmt_file_link` from Client Profile
+
+**Process:**
+1. Enumerate all files in the client's Google Drive folder: PMT schedule
+   file, entity documents, prior scorecards, planning docs, etc.
+2. Claude AI triages each file's relevance for THIS meeting (relevant /
+   background / stale)
+3. Extract **PMT schedule status** from the PMT file: payments scheduled
+   vs. made vs. upcoming — so the brief explicitly answers whether the
+   client knows what to pay and when
+
+**Output:**
+- File inventory with relevance flags
+- PMT status summary (feeds the brief's Tax Position section)
+
+**Error Handling:**
+- If `pmt_file_link` is missing or the file is unparseable: flag "PMT
+  schedule status unknown — check manually"
+
+---
+
+### 4.17 Sub-Workflow 16: Preparer Input Prompt
+
+**Purpose:** Capture the preparer's (Karen's) own knowledge — updates,
+concerns, topics — with a 2-minute effort, without blocking the pipeline.
+
+**Trigger:** Fires at master-workflow trigger time (48 hours / two days
+before the meeting)
+
+**Process:**
+1. Email Karen a short prompt: "Prepping for [CLIENT] on [DATE]. Any
+   updates, concerns, or topics to include? Reply to this email or leave
+   blank."
+2. n8n captures the reply (email parse) and folds the content into the
+   Meeting Brief
+3. **Non-blocking:** if no reply is received by T-24h, proceed without it
+   and note "no preparer input" in the brief
+
+**Output:**
+- Preparer input text (or "no preparer input" note) for the Meeting Brief
+
+---
+
+### 4.18 Sub-Workflow 17: Tax Strategy Screener
+
+**Purpose:** The highest-value addition — every quarter, systematically
+screen a curated Strategy Library against the client's fresh data and
+surface ranked, quantified tax-saving opportunities.
+
+**Rule Storage — the "Strategy Library" (Google Sheet):**
+Each row defines one strategy:
+- Strategy name and description
+- Trigger conditions (entity type, income thresholds, real estate
+  ownership, children, retirement plan status, state, W-2 comp levels,
+  etc.)
+- Estimated savings formula / heuristic
+- IRC / authority reference
+- Per-client status: implemented / rejected / candidate
+
+**Inputs:**
+- QBO financials (Sub-Workflow 2)
+- Tax Position JSON (Sub-Workflow 14)
+- Client Profile
+- Pre-meeting questionnaire answers
+
+**Process:**
+1. Each quarter, n8n + Claude AI evaluate EVERY library strategy against
+   the client's fresh data
+2. Filter out strategies already implemented or previously rejected for
+   this client (per-client status column)
+3. For each triggered strategy, compute estimated annual savings using the
+   library's formula/heuristic
+4. Rank the shortlist by estimated savings
+5. The top 2-3 candidates get a **Blue J-validated research memo** via the
+   existing research flow (see Sub-Workflow 6): Blue J findings + Claude
+   compose a cited memo; NotebookLM cross-checks; a human validates before
+   anything is client-facing
+
+**Seed Strategy Library (~15 strategies, seeded by the Developer in
+Week 2; content curated by the Firm on an ongoing basis):**
+1. S-Corp reasonable compensation optimization
+2. PTE (pass-through entity) election
+3. Augusta rule (IRC 280A(g))
+4. Cost segregation + bonus depreciation
+5. Real estate professional status (REPS)
+6. Solo 401(k) / defined benefit plan
+7. Hiring children
+8. Accountable plan / home office
+9. HRA / ICHRA
+10. HSA maximization
+11. QSBS (IRC 1202)
+12. R&D credit
+13. C-Corp / S-Corp restructuring
+14. Income timing / shifting
+15. Charitable bunching / donor-advised fund (DAF)
+
+**Output:**
+- Ranked shortlist of triggered strategies with estimated annual savings
+- Research memo links for the top 2-3 candidates
+- Feeds the brief's Strategy Opportunities section (Sub-Workflow 19)
+
+---
+
+### 4.19 Sub-Workflow 18: QBO Close & Hygiene Report
+
+**Purpose:** Give the preparer an honest "Books Health" picture — is the
+month closed, what's uncategorized, what's stale — before walking into the
+meeting.
+
+**Inputs:**
+- QBO API connection (per `accounting_access`)
+
+**Process:**
+1. Pull from the QBO API:
+   - Full uncategorized/unreviewed transaction list (also feeds the
+     existing reclassification engine, Sub-Workflow 9, and rules engine,
+     Sub-Workflow 10)
+   - Last reconciliation date per bank/credit account
+   - Bank feed sync lag
+   - A/R aging summary
+   - A/P aging summary
+   - Anomalies: negative balances, large one-off transactions
+2. Claude AI proposes categorizations for outstanding uncategorized items
+   (approval flows through Sub-Workflow 9 — propose → approve → apply)
+
+**Output:**
+- "Books Health" section for the Meeting Brief: month-end close status
+  checklist + outstanding items with AI-proposed categorizations
+
+**Error Handling:**
+- No QBO access (Branch B clients): section reads "books health not
+  available — no accounting API access"
+
+---
+
+### 4.20 Sub-Workflow 19: Meeting Brief Compiler
+
+**Purpose:** The primary deliverable of v2.0 — compile ALL upstream outputs
+into ONE Google Doc "Meeting Brief" (replaces the plain agenda as the
+primary deliverable; the agenda generator, Sub-Workflow 6, is now a
+component of this compiler).
+
+**Inputs:** outputs of Sub-Workflows 1-6, 12-18, questionnaire responses,
+and preparer input (Sub-Workflow 16)
+
+**Process:**
+Compile a Google Doc from the Meeting Brief template with these sections:
+1. **Executive Summary** (5 bullets)
+2. **Since Last Meeting** — email digest (SW12) + completed work + recap
+   of promises with Done/Pending/Blocked status (SW13)
+3. **Follow-Up Items** — consolidated, with owners
+4. **Financial Review** — scorecard, trends, CFO talking points (cash
+   position, margins, A/R-A/P), framed within the tax story per the Firm's
+   advisory positioning
+5. **Books Health** — close items, uncategorized transactions,
+   reconciliation status (SW18)
+6. **Tax Position** — YTD estimates, safe harbor status, PMT schedule
+   status (SW4, SW14, SW15)
+7. **Strategy Opportunities** — screener results with estimated savings +
+   research memo links (SW17)
+8. **Key Talking Points** — 7-10, ordered by importance
+9. **Questions for the Client**
+
+**Output:**
+- Completed Meeting Brief (Google Doc), saved to the client's Google Drive
+  folder and linked in the prep-ready notification (Section 5.3)
+- Structured brief content passed to the Presentation Deck Generator
+  (Sub-Workflow 20)
+
+---
+
+### 4.21 Sub-Workflow 20: Presentation Deck Generator
+
+**Purpose:** Turn the Meeting Brief into a client-facing presentation deck.
+
+**Inputs:**
+- Meeting Brief content (Sub-Workflow 19)
+
+**Process (default — Google Slides):**
+1. Auto-fill a Google Slides template from the Meeting Brief:
+   - Title slide
+   - Scorecard visual
+   - Since-last-meeting wins
+   - Tax position + payments due
+   - Strategy opportunities
+   - Next 90 days
+2. Save the deck to the client's Google Drive folder
+
+**Optional enhancement — Gamma API:**
+- The Firm has Gamma connected; as an optional nicer-output path, generate
+  a polished deck from the brief content via a Gamma API call
+- Google Slides remains the supported default
+
+**Approval:**
+- The deck is client-facing and is released ONLY after the existing
+  approval gate (Section 4.1, step 9)
+
+**Output:**
+- Presentation deck (Google Slides; optionally Gamma), held behind the
+  approval gate
+
+---
+
+### 4.22 Monitoring & Observability Requirements
 
 The Developer shall implement:
 
@@ -686,10 +1067,13 @@ Subject: ✓ Quarterly Prep Ready — [CLIENT_NAME] ([MEETING_DATE])
 Quarterly meeting prep for [CLIENT_NAME] is ready for your review.
 
 Documents prepared:
-- Meeting Agenda: [LINK]
+- Meeting Brief: [LINK]
+- Presentation Deck: [LINK]
+- Meeting Agenda (brief section): [LINK]
 - Client Scorecard: [LINK]
 - Tax Estimation: [LINK]
 - [IF APPLICABLE] Entity Comparison: [LINK]
+- [IF APPLICABLE] Strategy Research Memos: [LINKS]
 
 Items needing attention:
 - [LIST OF FLAGS/ISSUES]
@@ -714,9 +1098,17 @@ then either releases client-facing outputs or routes back for revision.
 
 ## 6. TESTING REQUIREMENTS
 
-All testing (including the v1.1 additions: Sub-Workflows 9-11, approval
-gates, questionnaire, payment reminders, and monitoring) fits within the
-existing 3-week plan — build in weeks 1-2, testing in week 3.
+All testing (including the v2.0 additions: Sub-Workflows 12-20, plus the
+v1.1 additions — Sub-Workflows 9-11, approval gates, questionnaire, payment
+reminders, and monitoring) fits within the existing **3-week plan**:
+
+- **Week 1:** core build + the new ingestion workflows (Sub-Workflows
+  12-15: communications digest, last-meeting recap, tax document
+  intelligence, file inventory)
+- **Week 2:** preparer prompt, strategy screener, brief compiler, and deck
+  generator (Sub-Workflows 16-20). The Strategy Library content is seeded
+  in Week 2 (Developer) and curated by the Firm on an ongoing basis
+- **Week 3:** testing (and the support period per Section 8)
 
 ### 6.1 Synthetic Test Scenarios
 The Developer shall create and test with the following synthetic client
@@ -729,7 +1121,13 @@ profiles:
 | C | LLC | Xero (API) | None | NY | No payroll, distributions only |
 | D | Sole Prop | No software | No payroll | TX | Everything manual/email |
 | E | S-Corp | QBO (view-only) | ADP (manual pay stub upload) | CA + NY | Multi-state, partial access |
-| F | Multi-Entity | QBO (API) | Rippling (manual pay stub upload) | CA | C-Corp with PTE election |
+| F | Multi-Entity | QBO (API) | Rippling (manual pay stub upload) | CA | C-Corp with PTE election; real estate ownership + high income (screener trigger test) |
+
+For v2.0, each synthetic client profile is extended with a **synthetic
+intelligence corpus**: synthetic email threads (Karbon/Gmail), a synthetic
+prior-meeting Fathom transcript, synthetic federal + state tax returns and
+a prior tax plan in `drive_tax_folder`, and a synthetic PMT schedule file.
+The Developer never touches real emails, returns, or transcripts.
 
 ### 6.2 Test Cases
 For each scenario, verify:
@@ -757,6 +1155,34 @@ For each scenario, verify:
 - [ ] Estimated payment reminders schedule after approval with correct
       amounts, due dates, and payment links (EFTPS, CA FTB Web Pay), and
       are cancellable when amounts change
+- [ ] Email digest (SW12): Karbon-primary pull works; Gmail fallback via
+      gmail_query_alias fires when Karbon has no communications; digest
+      correctly identifies commitments, unanswered questions, and life/
+      business changes seeded in the synthetic threads
+- [ ] Transcript feed-forward (SW13): promises seeded in the synthetic
+      transcript are extracted and cross-referenced against Karbon work
+      items into correct Done / Pending / Blocked statuses
+- [ ] Tax return extraction (SW14): AGI, taxable income, rates,
+      carryforwards, elections, safe harbor targets, and estimated payments
+      made are extracted correctly from the synthetic returns into the Tax
+      Position JSON
+- [ ] Strategy screener trigger logic (SW17): synthetic client with real
+      estate ownership + high income (Scenario F) triggers cost segregation
+      and REPS as candidates; already-implemented and previously-rejected
+      strategies are filtered out; savings estimates and ranking are
+      produced
+- [ ] PMT file status (SW15): payments scheduled vs. made vs. upcoming are
+      correctly extracted from the synthetic PMT schedule file and surfaced
+      in the brief's Tax Position section
+- [ ] Preparer input prompt (SW16): reply is captured and folded into the
+      brief; with no reply by T-24h the pipeline proceeds and notes "no
+      preparer input"
+- [ ] Brief compilation (SW19): the Meeting Brief contains all nine
+      sections, each populated from the correct upstream sub-workflow, with
+      graceful "not available" notes for missing inputs
+- [ ] Deck generation (SW20): Google Slides template auto-fills from the
+      brief; deck is held until Approve is clicked; optional Gamma path
+      documented (and tested if the sandbox has Gamma access)
 
 ### 6.3 Performance Requirements
 - Full workflow completion (API path): under 3 minutes
@@ -773,9 +1199,15 @@ For each scenario, verify:
 - Each sub-workflow as a separate file for modularity
 - Master workflow that orchestrates sub-workflows
 - Clear naming convention: `QMP-01-Master.json`, `QMP-02-Karbon.json`, etc.
-- Includes the new workflow JSONs: `QMP-09-Reclassification.json`
+- Includes the v1.1 workflow JSONs: `QMP-09-Reclassification.json`
   (Sub-Workflow 9), `QMP-10-RulesEngine.json` (Sub-Workflow 10), and
   `QMP-11-PaymentReminders.json` (Sub-Workflow 11)
+- Includes the v2.0 workflow JSONs: `QMP-12-CommsDigest.json`,
+  `QMP-13-MeetingRecap.json`, `QMP-14-TaxDocIntelligence.json`,
+  `QMP-15-FileInventory.json`, `QMP-16-PreparerPrompt.json`,
+  `QMP-17-StrategyScreener.json`, `QMP-18-BooksHealth.json`,
+  `QMP-19-BriefCompiler.json`, `QMP-20-DeckGenerator.json`
+  (Sub-Workflows 12-20)
 - All credential placeholders clearly documented
 - Version numbered
 
@@ -786,11 +1218,17 @@ For each scenario, verify:
 - Reclassification Review tab (with Approve checkbox column) + audit log
   tab (Sub-Workflow 9)
 - Rules tab for the Virtual Categorization Rules Engine (Sub-Workflow 10)
-- Run log sheet (Section 4.13)
+- **Strategy Library sheet** (Sub-Workflow 17), seeded with the ~15
+  strategies listed in Section 4.18, including trigger conditions, savings
+  heuristics, authority references, and per-client status columns
+- Run log sheet (Section 4.22)
 - All formulas documented in a separate tab or comment
 
 ### 7.3 Google Docs/Slides Templates
-- Meeting Agenda Template
+- **Meeting Brief Template** (Google Doc — the nine-section brief,
+  Sub-Workflow 19)
+- **Presentation Deck Template** (Google Slides — Sub-Workflow 20)
+- Meeting Agenda Template (now populated as sections of the Meeting Brief)
 - Client Scorecard Presentation Template
 - Research Memo Template (cited tax research memo — Blue J + Claude output)
 - Variable placeholders clearly marked: `{{CLIENT_NAME}}`, `{{REVENUE}}`, etc.
@@ -798,10 +1236,13 @@ For each scenario, verify:
 ### 7.4 Documentation
 - Setup guide (step-by-step for importing into production n8n)
 - Looker Studio dashboard setup instructions (connecting the Client Profile
-  Matrix + run log; Section 4.13)
+  Matrix + run log; Section 4.22)
 - API credential requirements list (which APIs, which scopes/permissions)
 - Troubleshooting guide (common errors and fixes)
 - Workflow architecture diagram (using Mermaid)
+- **Tax Position extraction prompt documentation** (the Claude prompts used
+  by Sub-Workflow 14 to extract the Tax Position JSON from returns, with
+  the expected JSON schema)
 - Variable reference (all variables used across workflows)
 - Training video walkthrough (15-30 minutes)
 
@@ -810,15 +1251,25 @@ For each scenario, verify:
 ## 8. ACCEPTANCE CRITERIA
 
 The project is considered complete when:
-1. All 11 sub-workflows function correctly against sandbox/synthetic data
+1. All 20 sub-workflows function correctly against sandbox/synthetic data
 2. All 6 test scenarios pass
-3. All deliverables listed in Section 7 are received
-4. Documentation is complete and accurate
-5. Training walkthrough is delivered
-6. The Firm successfully imports one workflow into their production n8n
+3. **Brief completeness:** for each synthetic test client, the generated
+   Meeting Brief contains all nine sections, each populated from the
+   correct upstream sub-workflow (with explicit "not available" notes
+   where an input is legitimately missing)
+4. **Strategy screener accuracy:** against the synthetic test clients, the
+   screener triggers the expected candidate strategies (e.g., cost
+   segregation + REPS for the real-estate/high-income client), filters
+   out implemented/rejected strategies, and produces ranked savings
+   estimates
+5. All deliverables listed in Section 7 are received (including the seeded
+   Strategy Library sheet and the Meeting Brief + Deck templates)
+6. Documentation is complete and accurate
+7. Training walkthrough is delivered
+8. The Firm successfully imports one workflow into their production n8n
    and runs it with their own credentials (Developer provides support
    via screen share)
-7. A short support period follows final delivery for bug fixes,
+9. A short support period follows final delivery for bug fixes,
    within the final week of the overall 3-week project timeline
 
 ---
