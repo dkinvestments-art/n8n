@@ -839,11 +839,20 @@ surface ranked, quantified tax-saving opportunities.
 **Rule Storage — the "Strategy Library" (Google Sheet):**
 Each row defines one strategy:
 - Strategy name and description
+- Category (entity / compensation / retirement / real estate / family /
+  health / credits / charitable / investment & exit / timing / state)
 - Trigger conditions (entity type, income thresholds, real estate
   ownership, children, retirement plan status, state, W-2 comp levels,
   etc.)
 - Estimated savings formula / heuristic
-- IRC / authority reference
+- IRC / authority reference (required — a strategy row without authority
+  citations is not eligible for screening)
+- **Risk rating: Conservative / Moderate / Aggressive** (drives the
+  validation workflow below)
+- Economic substance / documentation requirements (what the client must
+  actually do and keep for the strategy to hold up)
+- Added by / date added / review status (Draft → Firm-Approved; only
+  Firm-Approved rows are screened against clients)
 - Per-client status: implemented / rejected / candidate
 
 **Inputs:**
@@ -865,23 +874,95 @@ Each row defines one strategy:
    compose a cited memo; NotebookLM cross-checks; a human validates before
    anything is client-facing
 
-**Seed Strategy Library (~15 strategies, seeded by the Developer in
-Week 2; content curated by the Firm on an ongoing basis):**
+**Seed Strategy Library (~35 strategies, seeded by the Developer in
+Week 2; content curated and extended by the Firm on an ongoing basis):**
+
+*Entity & compensation:*
 1. S-Corp reasonable compensation optimization
 2. PTE (pass-through entity) election
-3. Augusta rule (IRC 280A(g))
-4. Cost segregation + bonus depreciation
-5. Real estate professional status (REPS)
-6. Solo 401(k) / defined benefit plan
-7. Hiring children
-8. Accountable plan / home office
-9. HRA / ICHRA
-10. HSA maximization
-11. QSBS (IRC 1202)
-12. R&D credit
-13. C-Corp / S-Corp restructuring
-14. Income timing / shifting
-15. Charitable bunching / donor-advised fund (DAF)
+3. C-Corp / S-Corp restructuring
+4. Multi-entity structures (management company / inter-company fee
+   arrangements) — Moderate risk
+5. Fiscal year election for C-Corp income deferral
+6. QSBS (IRC 1202) qualification and stacking
+7. Section 1244 stock loss treatment
+
+*Retirement:*
+8. Solo 401(k) / SEP optimization
+9. Defined benefit / cash balance plan
+10. Mega backdoor Roth
+11. Backdoor Roth IRA
+12. Roth conversion timing (low-income years)
+
+*Real estate:*
+13. Cost segregation + bonus depreciation
+14. Real estate professional status (REPS)
+15. Short-term rental "loophole" (IRC 469, 7-day rule)
+16. 1031 exchange
+17. Qualified Opportunity Zone investment
+18. Augusta rule (IRC 280A(g))
+19. Passive activity grouping elections
+20. Closely-held C-Corp passive loss offset (IRC 469(e) exception — the
+    strategy validated for the insurance agency client)
+
+*Family:*
+21. Hiring children
+22. Income shifting to lower-bracket family members
+23. 529 superfunding (5-year gift election)
+
+*Health & fringe:*
+24. Accountable plan / home office
+25. HRA / ICHRA
+26. HSA maximization
+27. Section 105 medical reimbursement plan
+
+*Credits & incentives:*
+28. R&D credit
+29. Work Opportunity Tax Credit (WOTC)
+30. Clean energy credits (179D, solar ITC, EV)
+
+*Charitable:*
+31. Charitable bunching / donor-advised fund (DAF)
+32. Appreciated stock gifting
+33. Charitable remainder / lead trusts (CRT/CLT) — Moderate risk
+
+*Investment & exit:*
+34. Installment sale structuring
+35. Tax-loss harvesting / direct indexing
+36. Income timing / shifting across years
+
+**Library Extensibility — Custom & Creative Strategies:**
+The library is designed to grow. Four intake paths, all landing as
+**Draft** rows that require Firm approval before they screen against any
+client:
+
+1. **Manual add** — anyone at the Firm adds a row anytime; the sheet is
+   the single source of truth. A row template with data-validation
+   dropdowns keeps entries consistent.
+2. **AI strategy discovery** — during each screening run, Claude is also
+   prompted: "given this client's full fact pattern, are there tax-saving
+   opportunities NOT in the library?" Any suggestion is written to a
+   "Proposed Strategies" tab as Draft, never shown to a client directly.
+3. **Transcript mining** — the post-meeting workflow (Sub-Workflow 8)
+   flags any strategy discussed in a meeting that isn't in the library
+   and proposes a Draft row (this captures the Firm's own creative ideas
+   the moment they surface on calls).
+4. **Quarterly law-change sweep** — a scheduled n8n job has Claude + Blue J
+   review recent federal/state tax law changes and propose new or updated
+   Draft rows (new credits, expiring provisions, threshold changes).
+
+**Guardrails for custom/creative strategies:**
+- Draft rows never screen against clients — only Firm-Approved rows do
+- Every row must carry authority citations and economic substance notes
+- **Aggressive-rated strategies always require a Blue J-validated research
+  memo AND explicit preparer sign-off before appearing in any brief** —
+  they are never auto-included on screener output alone
+- Strategies resembling listed transactions or reportable transactions
+  under IRS Notice guidance (e.g., syndicated conservation easements,
+  abusive micro-captives) are excluded by policy — the intake template
+  includes a checklist question forcing this review
+- The screener's output language distinguishes risk tiers so the client
+  conversation is framed honestly
 
 **Output:**
 - Ranked shortlist of triggered strategies with estimated annual savings
@@ -1218,7 +1299,7 @@ For each scenario, verify:
 - Reclassification Review tab (with Approve checkbox column) + audit log
   tab (Sub-Workflow 9)
 - Rules tab for the Virtual Categorization Rules Engine (Sub-Workflow 10)
-- **Strategy Library sheet** (Sub-Workflow 17), seeded with the ~15
+- **Strategy Library sheet** (Sub-Workflow 17), seeded with the ~35
   strategies listed in Section 4.18, including trigger conditions, savings
   heuristics, authority references, and per-client status columns
 - Run log sheet (Section 4.22)

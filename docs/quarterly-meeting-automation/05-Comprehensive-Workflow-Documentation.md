@@ -42,7 +42,7 @@ prior meeting's transcript, the client's tax returns on Drive, the full
 client file inventory, live books data, and the preparer's own input —
 and produces a complete **Meeting Brief** (a single 9-section Google Doc)
 plus a **presentation deck**. A Tax Strategy Screener evaluates a library
-of ~15 tax strategies against fresh client data every quarter and ranks
+of ~35 tax strategies (extensible with custom strategies) against fresh client data every quarter and ranks
 the opportunities by estimated savings. The pipeline fires **48 hours
 (two days) before the meeting**.
 
@@ -833,8 +833,13 @@ flowchart TD
 ### 5.11 Sub-Workflow 11: Tax Strategy Screener
 
 The highest-value addition in v2.0. A **Strategy Library** Google Sheet is
-seeded with ~15 tax strategies, each with trigger conditions and savings
-heuristics:
+seeded with **~35 tax strategies** across ten categories (entity &
+compensation, retirement, real estate, family, health & fringe, credits,
+charitable, investment & exit, timing, state) — see the Developer
+Requirements Specification, Sub-Workflow 17, for the full seed list. Each
+row carries trigger conditions, a savings heuristic, **authority
+citations, a risk rating (Conservative / Moderate / Aggressive), and
+economic substance notes**. A representative sample:
 
 | # | Strategy | Example Trigger Condition |
 |---|----------|---------------------------|
@@ -861,9 +866,29 @@ or previously rejected for the client are filtered out; remaining matches
 are ranked by estimated savings, and the **top 2-3** get Blue J-validated
 research memos (Claude composes; the professional validates).
 
+**The library is fully extensible — custom and creative strategies
+welcome.** Four intake paths, all landing as *Draft* rows that require
+Firm approval before they ever screen against a client:
+
+1. **Manual add** — anyone at the Firm adds a row anytime
+2. **AI strategy discovery** — during each screening run, Claude also
+   answers "are there opportunities NOT in the library for this fact
+   pattern?" and writes suggestions to a Proposed Strategies tab
+3. **Transcript mining** — strategies discussed on client calls that
+   aren't in the library are auto-proposed as Draft rows by the
+   post-meeting workflow
+4. **Quarterly law-change sweep** — Claude + Blue J review recent
+   federal/state tax law changes and propose new or updated rows
+
+Guardrails: Draft rows never screen against clients; every row needs
+authority citations; **Aggressive-rated strategies always require a
+Blue J-validated memo AND explicit preparer sign-off** before appearing
+in any brief; strategies resembling IRS listed/reportable transactions
+are excluded by policy.
+
 ```mermaid
 flowchart TD
-    IN([Trigger: prep pipeline<br/>fresh client data ready]) --> LIB[Load Strategy Library<br/>Google Sheet<br/>~15 strategies<br/>trigger conditions +<br/>savings heuristics]
+    IN([Trigger: prep pipeline<br/>fresh client data ready]) --> LIB[Load Strategy Library<br/>Google Sheet<br/>~35 strategies, extensible<br/>trigger conditions + risk rating +<br/>savings heuristics]
 
     LIB --> DATA[Assemble client data:<br/>QBO financials +<br/>tax position from<br/>Tax Document Intelligence +<br/>client profile +<br/>questionnaire responses]
 
@@ -1592,7 +1617,7 @@ flowchart TD
         COMPARE[Entity Comparison<br/>With vs Without<br/>C-Corp]
         SCORECARD[Client Scorecard<br/>4 metrics +<br/>AI narrative]
         RESEARCH[Tax Research Memo<br/>Blue J findings +<br/>Claude cited memo]
-        SCREEN[Tax Strategy Screener<br/>~15-strategy library<br/>ranked by savings]
+        SCREEN[Tax Strategy Screener<br/>~35-strategy library<br/>ranked by savings]
         BOOKS[QBO Close & Hygiene<br/>Books Health report]
     end
 
