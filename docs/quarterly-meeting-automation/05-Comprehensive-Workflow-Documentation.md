@@ -2,7 +2,7 @@
 
 ## Quarterly Client Meeting Preparation — Automation System
 
-**Version:** 1.1
+**Version:** 2.0
 **Date:** _______________
 
 ---
@@ -35,6 +35,16 @@ review meetings in a tax advisory practice. It replaces approximately
 75-90 minutes of manual preparation per client with an automated pipeline
 that collects data, performs calculations, and generates meeting-ready
 documents.
+
+**New in v2.0 — full client intelligence.** The system now ingests ALL
+current client intelligence — email threads since the last meeting, the
+prior meeting's transcript, the client's tax returns on Drive, the full
+client file inventory, live books data, and the preparer's own input —
+and produces a complete **Meeting Brief** (a single 9-section Google Doc)
+plus a **presentation deck**. A Tax Strategy Screener evaluates a library
+of ~15 tax strategies against fresh client data every quarter and ranks
+the opportunities by estimated savings. The pipeline fires **48 hours
+(two days) before the meeting**.
 
 ### 1.2 End-to-End Flow Summary
 
@@ -141,6 +151,15 @@ flowchart TD
 - For non-API accounting clients, add ~10 min for document collection wait time
 - Human review time cannot be eliminated — it ensures accuracy
 
+**v2.0 note — net-new intelligence work.** The 14 steps above describe the
+historical manual process and are preserved as observed. In addition to
+automating these steps, v2.0 also automates intelligence work Karen
+previously had no time to do manually at all: reviewing every client email
+thread since the last meeting, reviewing the prior meeting's transcript for
+promises made, screening the full strategy library against fresh data, and
+mining the client's tax returns for planning data. This is net-new value on
+top of the time savings shown above, not a reduction of an existing step.
+
 ---
 
 ## 3. AUTOMATED PROCESS DESIGN
@@ -178,11 +197,16 @@ flowchart TD
     end
 
     subgraph COLLECTION["DATA COLLECTION LAYER"]
-        KARBON[Karbon<br/>Pending Items]
-        QBO[QBO / Xero<br/>Financial Reports]
+        KARBON[Karbon<br/>Open items + items<br/>completed since<br/>last meeting]
+        QBO[QBO / Xero<br/>Financial Reports +<br/>Close & Hygiene data]
         PAYROLL[Payroll Software<br/>Manual pay stub<br/>download + upload]
         EMAIL[Karbon Client Requests<br/>auto-reminders<br/>Gmail/GHL fallback]
         INTAKE[Google Drive<br/>Document Intake]
+        COMMS[Client Communications<br/>Karbon comms API<br/>Gmail search fallback]
+        RECAP[Last-Meeting Recap<br/>prior Fathom transcript<br/>feed-forward]
+        TAXDOCS[Tax Document<br/>Intelligence<br/>Drive tax folder scan]
+        INVENTORY[Client File Inventory<br/>full Drive folder<br/>+ PMT schedule]
+        KAREN_IN[Preparer Input Prompt<br/>email Karen at T-48h<br/>non-blocking]
     end
 
     subgraph PROCESSING["AI PROCESSING LAYER"]
@@ -190,13 +214,15 @@ flowchart TD
         PARSE[Document Parser<br/>PDF / CSV / Excel]
         CALC[Tax Calculator<br/>Google Sheets]
         SCORE[Scorecard<br/>Generator]
-        AGENDA[Agenda<br/>Generator]
+        SCREENER[Tax Strategy<br/>Screener<br/>Strategy Library Sheet]
+        HYGIENE[QBO Close &<br/>Hygiene Report<br/>Books Health]
+        BRIEF[Meeting Brief<br/>Compiler<br/>9 sections incl. agenda]
     end
 
     subgraph OUTPUT["OUTPUT LAYER"]
-        GDOC[Google Docs<br/>Meeting Agenda]
+        GDOC[Google Docs<br/>Meeting Brief]
         GSHEET[Google Sheets<br/>Tax Calculator<br/>Scorecard]
-        GSLIDE[Google Slides<br/>Client Presentation]
+        GSLIDE[Google Slides /<br/>Gamma optional<br/>Presentation Deck]
         KARBON_WI[Karbon<br/>Work Item Creation]
         NOTIFY[Email<br/>Notification]
     end
@@ -209,18 +235,35 @@ flowchart TD
     BRANCH --> QBO
     BRANCH --> PAYROLL
     BRANCH --> EMAIL
+    BRANCH --> COMMS
+    BRANCH --> RECAP
+    BRANCH --> TAXDOCS
+    BRANCH --> INVENTORY
+    BRANCH --> KAREN_IN
     PAYROLL --> INTAKE
     INTAKE --> PARSE
     KARBON --> CLAUDE
     QBO --> CALC
+    QBO --> HYGIENE
     PARSE --> CALC
     EMAIL --> KARBON_WI
+    COMMS --> CLAUDE
+    RECAP --> CLAUDE
+    TAXDOCS --> CLAUDE
+    INVENTORY --> CLAUDE
+    KAREN_IN --> CLAUDE
     CALC --> SCORE
     CALC --> CLAUDE
     SCORE --> CLAUDE
-    CLAUDE --> AGENDA
-    AGENDA --> GDOC
-    AGENDA --> GSLIDE
+    TAXDOCS --> SCREENER
+    CALC --> SCREENER
+    CLAUDE --> SCREENER
+    SCREENER --> BRIEF
+    HYGIENE --> BRIEF
+    CLAUDE --> BRIEF
+    SCORE --> BRIEF
+    BRIEF --> GDOC
+    BRIEF --> GSLIDE
     SCORE --> GSHEET
     CALC --> GSHEET
     CLAUDE --> KARBON_WI
@@ -229,6 +272,40 @@ flowchart TD
     GSLIDE --> NOTIFY
     KARBON_WI --> NOTIFY
 ```
+
+**New v2.0 ingestion sources (DATA COLLECTION layer):**
+
+1. **Client Communications Digest.** n8n pulls all client email threads
+   since the last meeting via the Karbon communications API (with a Gmail
+   search fallback using the profile's `gmail_query_alias`). Claude digests
+   them into: commitments made by either side, open questions, life or
+   business changes mentioned, and unresolved threads.
+
+2. **Last-Meeting Recap (transcript feed-forward).** The prior meeting's
+   Fathom transcript (link stored in the client profile by the post-meeting
+   workflow) is fed INTO the next prep. Claude extracts the promises made
+   in that meeting and cross-references them against Karbon work items to
+   produce a Done / Pending / Blocked report. Previously the transcript was
+   only used post-meeting — this closes the loop.
+
+3. **Tax Document Intelligence.** n8n scans the client's Drive tax folder
+   (`drive_tax_folder` in the profile) and Claude extracts return data:
+   AGI, marginal and effective rates, carryforwards, elections,
+   depreciation schedules, safe harbor targets, and estimates paid.
+
+4. **Client File Inventory.** n8n enumerates the FULL client Drive folder
+   (not just the current quarter); AI triages what is relevant to this
+   meeting and extracts PMT schedule status (payments scheduled vs. made
+   vs. upcoming) from the client's PMT file (`pmt_file_link`).
+
+5. **Preparer Input Prompt.** At T-48h, n8n emails Karen: "any updates or
+   topics for [CLIENT]?" Her reply is parsed into the brief. This input is
+   **non-blocking** — if no reply arrives, the pipeline proceeds at T-24h
+   without it.
+
+6. **Completed-work pull.** The Karbon sub-workflow now pulls BOTH open
+   items AND items completed since the last meeting, so the brief can tell
+   the "what we've done for you" story.
 
 ---
 
@@ -240,7 +317,7 @@ This is the orchestrating workflow that coordinates all sub-workflows.
 
 ```mermaid
 flowchart TD
-    START([Google Calendar Trigger<br/>24-48 hrs before<br/>Quarterly Meeting]) --> EXTRACT[Extract client name<br/>from calendar event]
+    START([Google Calendar Trigger<br/>48 hours two days<br/>before Quarterly Meeting]) --> EXTRACT[Extract client name<br/>from calendar event]
 
     EXTRACT --> LOOKUP[Look up client in<br/>Client Profile Matrix<br/>Google Sheets]
 
@@ -250,16 +327,21 @@ flowchart TD
 
     VALIDATE -->|Yes| PARALLEL
 
-    subgraph PARALLEL["PARALLEL DATA COLLECTION"]
+    subgraph PARALLEL["PARALLEL DATA COLLECTION & INGESTION"]
         direction LR
-        P1[Sub-Workflow 1<br/>Karbon Pull]
+        P1[Sub-Workflow 1<br/>Karbon Pull<br/>open + completed]
         P2[Sub-Workflow 2<br/>Financial Data]
         P3[Sub-Workflow 3<br/>Payroll Data]
+        P8[Comms Digest<br/>client emails since<br/>last meeting]
+        P9[Last-Meeting Recap<br/>prior transcript<br/>feed-forward]
+        P10[Tax Document<br/>Intelligence<br/>Drive tax folder]
+        P11[Client File<br/>Inventory<br/>+ PMT status]
+        P12[Preparer Input<br/>Prompt to Karen<br/>non-blocking]
     end
 
     PARALLEL --> WAIT{All data<br/>collected?}
 
-    WAIT -->|Some pending<br/>email requests| PARTIAL[Continue with<br/>available data<br/>Flag gaps]
+    WAIT -->|Some pending<br/>email requests or<br/>Karen reply| PARTIAL[Continue with<br/>available data at T-24h<br/>Flag gaps]
     WAIT -->|All available| PROCESS
 
     PARTIAL --> PROCESS
@@ -268,13 +350,16 @@ flowchart TD
         direction LR
         P4[Sub-Workflow 4<br/>Tax Estimation]
         P5[Sub-Workflow 5<br/>Scorecard]
+        P13[Sub-Workflow 11<br/>Tax Strategy<br/>Screener]
+        P14[Sub-Workflow 12<br/>QBO Close &<br/>Hygiene Report]
     end
 
     PROCESS --> GENERATE
 
     subgraph GENERATE["DOCUMENT GENERATION"]
         direction LR
-        P6[Sub-Workflow 6<br/>Meeting Agenda]
+        P15[Sub-Workflow 13<br/>Meeting Brief Compiler<br/>9-section Google Doc]
+        P16[Sub-Workflow 14<br/>Presentation Deck<br/>Slides or Gamma]
         P7[Sub-Workflow 7<br/>Task Delegation]
     end
 
@@ -289,10 +374,13 @@ flowchart TD
 
 **Primary Trigger: Google Calendar**
 - Polls Google Calendar every 6 hours (or uses webhook)
-- Looks for events in the next 24-48 hours
+- Fires 48 hours (two days) before the meeting
 - Filters for events containing "Quarterly" in the title or a designated
   calendar label
 - Extracts client name from the event title or description
+- At T-48h the Preparer Input Prompt email is also sent to Karen; her
+  reply is folded into the brief if received, and the pipeline proceeds
+  at T-24h without it (non-blocking)
 
 **Secondary Trigger: Manual**
 - n8n button that allows a team member to manually trigger the prep
@@ -308,18 +396,25 @@ flowchart TD
 
 ## 5. SUB-WORKFLOW DETAILS
 
-### 5.1 Sub-Workflow 1: Karbon Pending Items
+### 5.1 Sub-Workflow 1: Karbon Pending & Completed Items
+
+New in v2.0: in addition to open items, this sub-workflow pulls the work
+items **completed since the last meeting**, which feed the "Since Last
+Meeting" / "what we've done for you" story in the Meeting Brief.
 
 ```mermaid
 flowchart TD
     IN([Receive<br/>karbon_client_id]) --> AUTH[Authenticate<br/>to Karbon API]
     AUTH --> WORK[Get all work items<br/>status != Complete]
+    AUTH --> DONE[Get work items<br/>completed since<br/>last meeting date]
     AUTH --> COMM[Get recent<br/>communications<br/>last 90 days]
     WORK --> FILTER[Filter for<br/>actionable items]
     COMM --> FILTER
+    DONE --> STORY[Format completed items<br/>as what we've done<br/>for you summary]
     FILTER --> FORMAT[Format as<br/>structured list]
     FORMAT --> CATEGORIZE[Categorize items<br/>Tax Return / Advisory /<br/> Admin / Client Action]
-    CATEGORIZE --> OUT([Return pending<br/>items JSON +<br/>summary text])
+    CATEGORIZE --> OUT([Return pending +<br/>completed items JSON +<br/>summary text])
+    STORY --> OUT
 
     WORK -->|API Error| FALLBACK[Log error<br/>Flag for manual check]
     FALLBACK --> OUT
@@ -573,6 +668,11 @@ Tax savings of $9,256 from the new C-Corp entity structure.
 
 ### 5.6 Sub-Workflow 6: Meeting Agenda Generation
 
+**v2.0 note:** the agenda generator is now a **component of the Meeting
+Brief Compiler (Sub-Workflow 13)** — its output becomes the "Key Talking
+Points" and related sections of the 9-section Meeting Brief rather than a
+standalone document. The flow below is unchanged internally.
+
 ```mermaid
 flowchart TD
     IN([Receive:<br/>• Pending items<br/>• Tax estimation<br/>• Scorecard<br/>• Client profile<br/>• Blue J research memo<br/>• Pre-meeting questionnaire<br/>responses]) --> COMPILE[Compile all inputs<br/>into structured prompt]
@@ -645,9 +745,9 @@ flowchart TD
     KARBON_TASK --> KARBON[Update Karbon<br/>with meeting notes<br/>and next steps]
     EMAIL_DRAFT --> KARBON
 
-    KARBON --> PROFILE_UPDATE[Update Client Profile<br/>last_meeting_date<br/>next quarter goals]
+    KARBON --> PROFILE_UPDATE[Update Client Profile<br/>last_meeting_date<br/>last_meeting_transcript_link<br/>next quarter goals]
 
-    PROFILE_UPDATE --> OUT([Post-meeting<br/>processing complete])
+    PROFILE_UPDATE --> OUT([Post-meeting<br/>processing complete<br/>transcript feeds next<br/>quarter's prep])
 ```
 
 ---
@@ -730,6 +830,177 @@ flowchart TD
 
 ---
 
+### 5.11 Sub-Workflow 11: Tax Strategy Screener
+
+The highest-value addition in v2.0. A **Strategy Library** Google Sheet is
+seeded with ~15 tax strategies, each with trigger conditions and savings
+heuristics:
+
+| # | Strategy | Example Trigger Condition |
+|---|----------|---------------------------|
+| 1 | S-Corp reasonable compensation optimization | S-Corp with owner W-2 far from comp benchmark |
+| 2 | Pass-through entity (PTE) election | Pass-through in a PTE state, no election on file |
+| 3 | Augusta rule (Section 280A(g)) | Owner with a personal residence + business meetings |
+| 4 | Cost segregation + bonus depreciation | Building/improvements on the balance sheet |
+| 5 | Real estate professional status | Significant rental losses + hours threshold plausible |
+| 6 | Solo 401(k) / defined benefit plan | High profit, low current retirement deferrals |
+| 7 | Hiring children | Owner with minor children, sole prop or family entity |
+| 8 | Accountable plan | S-Corp owner paying business costs personally |
+| 9 | HRA / ICHRA | Owner-employees with unreimbursed health costs |
+| 10 | HSA maximization | HDHP coverage, HSA not maxed |
+| 11 | QSBS (Section 1202) | C-Corp stock, potential exit horizon |
+| 12 | R&D credit | Software/product development spend |
+| 13 | Entity restructuring | Profit level crossing entity break-even thresholds |
+| 14 | Income timing / deferral | Large projected income swing vs. prior year |
+| 15 | Charitable bunching / DAF | Regular giving near the standard deduction line |
+
+Each quarter, n8n + Claude screen **every** strategy in the library
+against fresh client data (QBO financials + extracted tax position +
+client profile + questionnaire responses). Strategies already implemented
+or previously rejected for the client are filtered out; remaining matches
+are ranked by estimated savings, and the **top 2-3** get Blue J-validated
+research memos (Claude composes; the professional validates).
+
+```mermaid
+flowchart TD
+    IN([Trigger: prep pipeline<br/>fresh client data ready]) --> LIB[Load Strategy Library<br/>Google Sheet<br/>~15 strategies<br/>trigger conditions +<br/>savings heuristics]
+
+    LIB --> DATA[Assemble client data:<br/>QBO financials +<br/>tax position from<br/>Tax Document Intelligence +<br/>client profile +<br/>questionnaire responses]
+
+    DATA --> SCREEN[Claude screens EVERY<br/>strategy against<br/>client data]
+
+    SCREEN --> HISTORY{Already implemented<br/>or previously rejected<br/>for this client?}
+
+    HISTORY -->|Yes| DROP[Filter out<br/>log reason]
+    HISTORY -->|No| ESTIMATE[Estimate savings<br/>using library heuristics<br/>+ client numbers]
+
+    ESTIMATE --> RANK[Rank strategies by<br/>estimated savings]
+
+    RANK --> TOP[Select top 2-3<br/>opportunities]
+
+    TOP --> MEMO[Blue J-validated<br/>research memo per pick<br/>Claude composes<br/>professional validates]
+
+    MEMO --> OUT([Return ranked list +<br/>memos for the<br/>Strategy Opportunities<br/>brief section])
+    DROP --> OUT
+```
+
+---
+
+### 5.12 Sub-Workflow 12: QBO Close & Hygiene Report
+
+Produces the **"Books Health"** section of the Meeting Brief, with a
+month-end close checklist.
+
+```mermaid
+flowchart TD
+    IN([Trigger: prep pipeline<br/>QBO API access]) --> PULL
+
+    subgraph PULL["HYGIENE DATA PULL (QBO API)"]
+        UNCAT[Uncategorized<br/>transaction list]
+        RECON[Last reconciliation<br/>dates per account]
+        FEED[Bank feed lag<br/>days since last sync]
+        AGING[A/R + A/P<br/>aging reports]
+    end
+
+    UNCAT --> RECLASS[Feed existing<br/>Reclassification Engine<br/>Sub-Workflow 9]
+    UNCAT --> ANALYZE
+    RECON --> ANALYZE
+    FEED --> ANALYZE
+    AGING --> ANALYZE
+
+    ANALYZE[Claude analyzes<br/>for anomalies:<br/>stale reconciliations<br/>aging spikes<br/>unusual balances]
+
+    ANALYZE --> REPORT[Compose Books Health<br/>section + month-end<br/>close checklist]
+
+    REPORT --> OUT([Return Books Health<br/>report for the brief])
+```
+
+---
+
+### 5.13 Sub-Workflow 13: Meeting Brief Compiler
+
+Compiles everything into **one Google Doc** — the Meeting Brief — with 9
+sections. The former standalone agenda generator (Sub-Workflow 6) is now a
+component of this compiler.
+
+**The 9 brief sections:**
+
+1. **Executive Summary**
+2. **Since Last Meeting** (comms digest + completed Karbon work)
+3. **Follow-Up Items** (transcript feed-forward: Done / Pending / Blocked)
+4. **Financial Review** (scorecard + CFO talking points framed in the tax
+   story)
+5. **Books Health** (QBO Close & Hygiene Report)
+6. **Tax Position** (incl. PMT schedule status)
+7. **Strategy Opportunities** (ranked screener output + memos)
+8. **Key Talking Points**
+9. **Questions for Client**
+
+```mermaid
+flowchart TD
+    subgraph INPUTS["ALL INPUTS CONVERGE"]
+        I1[Karbon open +<br/>completed items]
+        I2[Client Communications<br/>Digest]
+        I3[Last-Meeting Recap<br/>Done/Pending/Blocked]
+        I4[Scorecard +<br/>financial data]
+        I5[Books Health report]
+        I6[Tax Estimation +<br/>Tax Document Intelligence<br/>+ PMT schedule status]
+        I7[Strategy Screener<br/>ranked opportunities]
+        I8[Preparer input<br/>Karen's reply if any]
+        I9[Questionnaire<br/>responses]
+    end
+
+    I1 --> COMPILE
+    I2 --> COMPILE
+    I3 --> COMPILE
+    I4 --> COMPILE
+    I5 --> COMPILE
+    I6 --> COMPILE
+    I7 --> COMPILE
+    I8 --> COMPILE
+    I9 --> COMPILE
+
+    COMPILE[Claude compiles the<br/>9-section Meeting Brief<br/>agenda generator runs<br/>as a component]
+
+    COMPILE --> GDOC[Write single<br/>Google Doc<br/>Meeting Brief]
+
+    GDOC --> DECK[Feed Presentation<br/>Deck Generator<br/>Sub-Workflow 14]
+    GDOC --> SAVE[Save to client<br/>Drive folder]
+
+    SAVE --> OUT([Return brief link<br/>for approval gate])
+```
+
+---
+
+### 5.14 Sub-Workflow 14: Presentation Deck Generator
+
+Two paths, both released only through the **existing approval gate**
+(Section 8.2): the default auto-fills a Google Slides template from the
+brief; the optional path uses the **Gamma API** (the firm has Gamma) for
+polished AI-generated decks.
+
+```mermaid
+flowchart TD
+    IN([Receive approved-draft<br/>Meeting Brief content]) --> MODE{Deck mode<br/>per client profile<br/>or preparer choice?}
+
+    MODE -->|Default| SLIDES[Auto-fill Google Slides<br/>template from brief:<br/>scorecard visual<br/>tax savings<br/>strategy picks<br/>next steps]
+
+    MODE -->|Optional| GAMMA[Gamma API<br/>AI-generated deck<br/>from brief content]
+
+    SLIDES --> REVIEW[Attach deck to<br/>prep package]
+    GAMMA --> REVIEW
+
+    REVIEW --> GATE{Existing approval gate<br/>Approve /<br/>Request Changes}
+
+    GATE -->|Approve| RELEASE[Deck released with<br/>client-facing package]
+    GATE -->|Request Changes| REVISE[Route back<br/>with comments]
+    REVISE --> IN
+
+    RELEASE --> OUT([Return deck link])
+```
+
+---
+
 ## 6. CLIENT PROFILE ADAPTIVE SYSTEM
 
 ### 6.1 How Profiles Drive Workflow Behavior
@@ -774,6 +1045,17 @@ flowchart TD
 | has_c_corp | Yes | No | No |
 | has_pte_election | Yes | Yes | No |
 | meeting_cadence | Quarterly | Quarterly | Semi_Annual |
+| gmail_query_alias | from:candace@… | from:clientb@… | from:clientc@… |
+| drive_tax_folder | /ClientA/Tax | /ClientB/Tax | /ClientC/Tax |
+| pmt_file_link | (Drive link) | (Drive link) | (Drive link) |
+| last_meeting_transcript_link | (Fathom link) | (Fathom link) | (empty — first meeting) |
+
+**New v2.0 profile fields:** `gmail_query_alias` drives the Gmail fallback
+search for the Communications Digest; `drive_tax_folder` points Tax
+Document Intelligence at the right folder; `pmt_file_link` locates the PMT
+schedule for the File Inventory; `last_meeting_transcript_link` is written
+by the post-meeting workflow and read by the Last-Meeting Recap
+feed-forward.
 
 **Workflow behavior per client:**
 
@@ -876,34 +1158,39 @@ TAX SAVINGS = Scenario B Total - Scenario A Total = $X,XXX
 
 ### 8.1 Meeting Prep Package
 
-The complete output for each client meeting consists of:
+The complete output for each client meeting now centers on the
+**Meeting Brief** (one 9-section Google Doc) plus the presentation deck:
 
 ```
 Client Meeting Prep Package
-├── 📊 Client Scorecard (Google Sheets)
+├── 📘 MEETING BRIEF (Google Docs — the centerpiece)
+│   ├── 1. Executive Summary
+│   ├── 2. Since Last Meeting (comms digest + completed Karbon work)
+│   ├── 3. Follow-Up Items (transcript feed-forward: Done/Pending/Blocked)
+│   ├── 4. Financial Review (scorecard + CFO talking points, tax story)
+│   ├── 5. Books Health (QBO close & hygiene report + close checklist)
+│   ├── 6. Tax Position (incl. PMT schedule status)
+│   ├── 7. Strategy Opportunities (top 2-3 ranked, with memos)
+│   ├── 8. Key Talking Points
+│   └── 9. Questions for Client
+│
+├── 🎯 Presentation Deck (Google Slides default / Gamma optional)
+│   ├── Auto-filled from the Meeting Brief
+│   ├── Scorecard + tax savings visuals
+│   └── Strategy picks + next steps summary
+│
+├── 📊 Client Scorecard (Google Sheets — feeds brief section 4)
 │   ├── Revenue comparison (12mo vs prior 12mo)
 │   ├── Profit margin comparison
 │   ├── Owner take-home comparison
 │   └── Tax savings / efficiency metrics
 │
-├── 🧮 Tax Estimation Calculator (Google Sheets)
+├── 🧮 Tax Estimation Calculator (Google Sheets — feeds brief section 6)
 │   ├── Projected annual income
 │   ├── Estimated tax liability
 │   ├── Quarterly payment schedule
 │   ├── Entity comparison (if multi-entity)
 │   └── AI validation notes
-│
-├── 📋 Meeting Agenda (Google Docs)
-│   ├── Quick Win highlight
-│   ├── Scorecard narrative
-│   ├── Payment amounts and due dates
-│   ├── Next 90 days action plan
-│   └── Open items and questions
-│
-├── 🎯 Presentation Slides (Google Slides) [optional]
-│   ├── Scorecard visual
-│   ├── Tax savings visual
-│   └── Next steps summary
 │
 ├── ✅ Task List (Karbon work items)
 │   ├── Pre-meeting prep tasks
@@ -911,7 +1198,7 @@ Client Meeting Prep Package
 │   └── Client follow-up items
 │
 └── 📌 Status Flags
-    ├── Data gaps (what's missing)
+    ├── Data gaps (what's missing, incl. no Karen reply)
     ├── Anomalies detected by AI
     └── Items requiring human judgment
 ```
@@ -923,8 +1210,8 @@ client-facing touchpoints:
 
 1. **One-click approval gates.** The "prep is ready" email to the
    preparer includes **Approve** and **Request Changes** links, backed by
-   an n8n human-in-the-loop webhook. Nothing client-facing (agenda,
-   scorecard, payment schedule) is released until the preparer clicks
+   an n8n human-in-the-loop webhook. Nothing client-facing (meeting brief,
+   presentation deck, scorecard, payment schedule) is released until the preparer clicks
    Approve; Request Changes routes the package back with a comment field.
 
 2. **Pre-meeting client questionnaire.** A short form (3-5 questions —
@@ -974,8 +1261,16 @@ flowchart LR
     CLAUDE --> EMAIL[Client follow-up<br/>email drafted]
     TASKS --> KARBON[Karbon updated<br/>with notes]
     EMAIL --> KARBON
-    KARBON --> PROFILE[Client Profile<br/>updated with<br/>next quarter goals]
+    KARBON --> PROFILE[Client Profile updated:<br/>next quarter goals +<br/>last_meeting_transcript_link]
+    PROFILE -.->|Feed-forward: transcript<br/>read by next quarter's<br/>Last-Meeting Recap| NEXT[Next quarter's<br/>prep pipeline]
 ```
+
+**Closing the feed-forward loop (v2.0):** the post-meeting workflow now
+stores the Fathom transcript link in the client profile
+(`last_meeting_transcript_link`). The next quarter's prep pipeline reads
+it in the Last-Meeting Recap ingestion step, extracting promises made and
+cross-referencing Karbon work items into a Done / Pending / Blocked
+report.
 
 ---
 
@@ -1089,6 +1384,10 @@ gantt
     Document request emails + Drive intake      :p1d, 2026-07-03, 3d
     Manual payroll upload + AI parse            :p1e, 2026-07-03, 3d
     Karbon client requests + auto-reminders     :p1f, 2026-07-03, 3d
+    Comms digest (Karbon comms + Gmail fallback) :p1g, 2026-07-04, 3d
+    Transcript feed-forward (last-meeting recap) :p1h, 2026-07-04, 3d
+    Tax document intelligence (Drive tax folder) :p1i, 2026-07-05, 3d
+    Client file inventory + PMT status          :p1j, 2026-07-05, 3d
 
     section Week 2 - Processing & Output
     Tax estimation templates                    :p2a, 2026-07-08, 3d
@@ -1102,6 +1401,11 @@ gantt
     Blue J research memo integration            :p2i, 2026-07-10, 2d
     Approval gates + payment reminders          :p2j, 2026-07-11, 2d
     Run log + Looker Studio dashboard           :p2k, 2026-07-11, 2d
+    Tax strategy screener + strategy library    :p2l, 2026-07-08, 4d
+    QBO close and hygiene report                :p2m, 2026-07-09, 2d
+    Meeting brief compiler (9 sections)         :p2n, 2026-07-11, 3d
+    Deck generator (Slides default, Gamma optional) :p2o, 2026-07-12, 2d
+    Preparer input prompt (T-48h email)         :p2p, 2026-07-12, 1d
 
     section Week 3 - Testing & Handoff
     Sandbox testing all scenarios               :p3a, 2026-07-15, 3d
@@ -1150,6 +1454,7 @@ flowchart TD
         CLAUDE_S[Claude AI<br/>Anthropic API]
         CHATGPT[ChatGPT<br/>OpenAI API<br/>Backup]
         BLUEJ[Blue J Tax<br/>AI tax research<br/>cited findings<br/>used via UI]
+        GAMMA_S[Gamma<br/>optional AI deck<br/>generation via API]
     end
 
     subgraph PRODUCTIVITY["PRODUCTIVITY"]
@@ -1192,6 +1497,7 @@ flowchart TD
 
     N8N --> CLAUDE_S
     N8N --> CHATGPT
+    N8N -->|Optional deck path| GAMMA_S
     BLUEJ -.->|Research findings<br/>pasted or uploaded<br/>via UI| CLAUDE_S
     NOTEBOOK -.->|Cross-check| CLAUDE_S
 
@@ -1230,6 +1536,13 @@ flowchart TD
 | SaasAnt Transactions (~$20/mo, optional) | File-based bulk import/export for QBO | SaasAnt login + QBO connect | N/A — optional fallback for bulk QBO edits | Trial available |
 | GoHighLevel | REST | API Key | HTTP Request | Yes (test account) |
 | Fathom | REST | API Key | HTTP Request | Contact Fathom |
+| Gamma (optional — AI deck generation) | REST | API Key | HTTP Request | API access on paid plan |
+
+**Compliance note (v2.0):** the new intelligence ingestion — client email
+threads and tax return data — is processed entirely within firm-controlled
+systems (Karbon, the firm's Google Workspace, and the firm's own AI API
+accounts). No client emails or tax returns flow through third-party
+development environments.
 
 ---
 
@@ -1239,16 +1552,16 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    START([24-48 hrs before<br/>Quarterly Meeting]) --> TRIGGER[Google Calendar<br/>Trigger fires]
+    START([48 hours two days<br/>before Quarterly Meeting]) --> TRIGGER[Google Calendar<br/>Trigger fires]
 
     TRIGGER --> LOOKUP[Look up client<br/>in Profile Matrix]
 
     LOOKUP --> PARALLEL_COLLECT
 
-    subgraph PARALLEL_COLLECT["PARALLEL DATA COLLECTION"]
+    subgraph PARALLEL_COLLECT["PARALLEL DATA COLLECTION & INGESTION"]
         direction TB
 
-        K[KARBON<br/>Pending items]
+        K[KARBON<br/>Open items +<br/>completed since<br/>last meeting]
 
         F_CHECK{Accounting<br/>access?}
         F_CHECK -->|API| F_API[Pull QBO/Xero<br/>reports via API]
@@ -1257,6 +1570,12 @@ flowchart TD
         P_CHECK{Has<br/>payroll?}
         P_CHECK -->|Yes| P_MANUAL[Manual: team downloads<br/>+ uploads pay stubs<br/>AI parses uploaded stub]
         P_CHECK -->|None| P_SKIP[Flag distributions<br/>only]
+
+        C_DIGEST[Comms digest<br/>emails since<br/>last meeting]
+        T_RECAP[Last-meeting recap<br/>transcript feed-forward]
+        T_DOCS[Tax document<br/>intelligence<br/>Drive tax folder]
+        F_INV[Client file inventory<br/>+ PMT schedule status]
+        K_IN[Preparer input prompt<br/>email Karen T-48h<br/>non-blocking, T-24h cutoff]
     end
 
     PARALLEL_COLLECT --> DATA_READY{All data<br/>available?}
@@ -1273,14 +1592,16 @@ flowchart TD
         COMPARE[Entity Comparison<br/>With vs Without<br/>C-Corp]
         SCORECARD[Client Scorecard<br/>4 metrics +<br/>AI narrative]
         RESEARCH[Tax Research Memo<br/>Blue J findings +<br/>Claude cited memo]
+        SCREEN[Tax Strategy Screener<br/>~15-strategy library<br/>ranked by savings]
+        BOOKS[QBO Close & Hygiene<br/>Books Health report]
     end
 
     PROCESS --> GENERATE
 
     subgraph GENERATE["DOCUMENT GENERATION"]
         direction TB
-        AGENDA_GEN[Meeting Agenda<br/>Claude AI draft<br/>Google Docs]
-        SLIDES_GEN[Presentation<br/>Google Slides]
+        BRIEF_GEN[Meeting Brief<br/>9-section Google Doc<br/>agenda as component]
+        DECK_GEN[Presentation Deck<br/>Google Slides default<br/>Gamma optional]
         TASKS_GEN[Task Delegation<br/>Karbon work items]
     end
 
@@ -1303,9 +1624,10 @@ flowchart TD
         TASK_CREATE[Karbon work items<br/>created]
         FOLLOWUP[Client follow-up<br/>email drafted]
         KARBON_UPDATE[Karbon updated<br/>with meeting notes]
+        LINK_SAVE[Transcript link saved<br/>to client profile<br/>feeds next prep]
     end
 
-    POST --> NEXT([Ready for<br/>next quarter])
+    POST --> NEXT([Ready for<br/>next quarter<br/>transcript feed-forward])
 ```
 
 ### 14.2 File Naming Conventions
@@ -1318,7 +1640,7 @@ All automated outputs follow this naming convention:
 Examples:
 CandaceMyers_QMP_Q1-2026_Scorecard.xlsx
 CandaceMyers_QMP_Q1-2026_TaxEstimate.xlsx
-CandaceMyers_QMP_Q1-2026_Agenda.docx
+CandaceMyers_QMP_Q1-2026_MeetingBrief.docx
 CandaceMyers_QMP_Q1-2026_Presentation.pptx
 CandaceMyers_QMP_Q1-2026_PayrollSummary.pdf
 ```
@@ -1340,7 +1662,7 @@ Client Root Folder/
 │   │   │   └── EntityComparison_Q1-2026.xlsx
 │   │   └── Meeting/
 │   │       ├── Scorecard_Q1-2026.xlsx
-│   │       ├── Agenda_Q1-2026.docx
+│   │       ├── MeetingBrief_Q1-2026.docx
 │   │       └── Presentation_Q1-2026.pptx
 │   ├── Q2/
 │   ├── Q3/
@@ -1350,8 +1672,12 @@ Client Root Folder/
 
 ### 14.4 Future Enhancements (Optional Avenues)
 
-These are optional avenues beyond the v1.1 scope — none are required for
-the system to operate, and none change the locked decisions above:
+These are optional avenues beyond the v2.0 scope — none are required for
+the system to operate, and none change the locked decisions above. (Items
+that were future avenues in v1.1 and are now in scope — client email
+review, transcript feed-forward, tax return mining, strategy screening,
+the meeting brief, and deck generation — have been promoted into
+Sections 3-5 and removed from this list.)
 
 - **Dedicated payroll intake mailbox.** Clients email their pay stubs to
   a dedicated address; n8n parses and files them automatically into the
