@@ -55,29 +55,65 @@ for (const extra of ["Astute-Seed-Automation-Sheets.workflow.json",
 import { execFileSync } from "node:child_process";
 const USE_CURL = !!(process.env.HTTPS_PROXY || process.env.https_proxy) && !flag("--no-curl");
 
-const api = async (method, path, body) => {
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const RETRY_STATUS = new Set([429, 502, 503, 504]); // transient: rate limit, gateway, DB-not-ready
+
+// one request, returns { status, text }; never throws on HTTP status
+const requestRaw = async (method, path, body) => {
   const url = BASE + "/api/v1" + path;
   const headers = { "X-N8N-API-KEY": KEY, "content-type": "application/json", accept: "application/json" };
-  let status, text;
   if (USE_CURL) {
     const args = ["-sS", "--max-time", "60", "-X", method, url,
                   "-H", "X-N8N-API-KEY: " + KEY, "-H", "content-type: application/json",
                   "-H", "accept: application/json", "-w", "\n__HTTP_STATUS__:%{http_code}"];
     if (body !== undefined) args.push("--data-binary", JSON.stringify(body));
-    const out = execFileSync("curl", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+    let out;
+    try { out = execFileSync("curl", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }); }
+    catch (e) { return { status: 0, text: String(e.stderr || e.message || e) }; } // curl transport error
     const m = out.match(/\n__HTTP_STATUS__:(\d+)\s*$/);
-    status = m ? Number(m[1]) : 0;
-    text = m ? out.slice(0, m.index) : out;
-  } else {
-    const res = await fetch(url, { method, headers,
-      body: body === undefined ? undefined : JSON.stringify(body) });
-    status = res.status;
-    text = await res.text();
+    return { status: m ? Number(m[1]) : 0, text: m ? out.slice(0, m.index) : out };
   }
-  let json; try { json = JSON.parse(text); } catch { json = { raw: text }; }
-  if (status < 200 || status >= 300) throw new Error(method + " " + path + " -> " + status + ": " + String(text).slice(0, 300));
-  return json;
+  try {
+    const res = await fetch(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+    return { status: res.status, text: await res.text() };
+  } catch (e) { return { status: 0, text: String(e.message || e) }; }
 };
+
+// api() with automatic retry on transient statuses (503 "Database is not ready!", 429, gateways)
+const api = async (method, path, body, { retries = 5 } = {}) => {
+  let attempt = 0, last;
+  while (true) {
+    const { status, text } = await requestRaw(method, path, body);
+    last = { status, text };
+    if (status >= 200 && status < 300) {
+      try { return JSON.parse(text); } catch { return { raw: text }; }
+    }
+    const transient = status === 0 || RETRY_STATUS.has(status);
+    if (transient && attempt < retries) {
+      const wait = Math.min(1000 * 2 ** attempt, 16000);
+      console.error("  transient " + status + " on " + method + " " + path + " — retry in " + (wait / 1000) + "s (" + (attempt + 1) + "/" + retries + ")");
+      await sleep(wait); attempt++; continue;
+    }
+    throw new Error(method + " " + path + " -> " + status + ": " + String(text).slice(0, 300));
+  }
+};
+
+// block until n8n's API + database are ready (Railway cold-start / DB warmup)
+const waitForReady = async (maxSeconds = 180) => {
+  const deadline = Date.now() + maxSeconds * 1000;
+  let announced = false;
+  while (Date.now() < deadline) {
+    const { status } = await requestRaw("GET", "/workflows?limit=1");
+    if (status >= 200 && status < 300) { if (announced) console.log("n8n is ready."); return; }
+    if (status === 401 || status === 403) throw new Error("Auth failed (" + status + ") — check N8N_API_KEY / its scopes.");
+    if (!announced) { console.log("Waiting for n8n to be ready (last status " + status + ")..."); announced = true; }
+    await sleep(3000);
+  }
+  throw new Error("n8n not ready after " + maxSeconds + "s — check the instance / its database (Railway Postgres service).");
+};
+
+// wait for the instance + DB before doing anything (unless just previewing offline)
+if (!flag("--dry-run")) await waitForReady();
 
 // map existing workflows by name (paginate)
 const existing = new Map();
