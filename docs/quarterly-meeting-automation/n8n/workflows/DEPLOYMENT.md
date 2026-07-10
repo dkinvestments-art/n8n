@@ -147,3 +147,27 @@ against live systems** from the build environment. Expect to touch:
    the query + mutate nodes for Deposits/JournalEntries when needed.
 4. **Gmail `resumeUrl` links** — approval links use n8n's Wait-node resume URL;
    confirm your n8n instance URL is externally reachable for Karen's click.
+
+## Push all workflows via the n8n API — `deploy_to_n8n.mjs`
+
+Instead of importing 21+ files by hand, push them all in one command:
+
+```bash
+N8N_BASE_URL=https://<karens-n8n-instance> \
+N8N_API_KEY=<key from n8n UI: Settings -> n8n API -> Create API key> \
+node deploy_to_n8n.mjs            # add --dry-run to preview, --activate to enable schedules
+```
+
+- **Create-or-update by name** — re-running updates workflows in place (same
+  ids), so the master's Run-node selections survive redeploys.
+- Nothing is activated by default; activate after pasting credentials + IDs.
+- Also pushes the seed + worked-example workflows from the parent folder.
+
+**Verified end-to-end** against a real n8n (installed from npm) started
+locally: all 24 workflows **created with 0 failures** through
+`POST /api/v1/workflows`, a second run **updated all 24 in place** (idempotent,
+no duplicates), and every QMP workflow **round-tripped from the API with
+identical node counts**. Only local-install quirk: n8n's `xlsx` dependency
+downloads from cdn.sheetjs.com (add an npm override to `xlsx@0.18.5` if that
+host is blocked in your environment — irrelevant for n8n Cloud or existing
+installs).
