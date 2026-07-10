@@ -1,0 +1,984 @@
+{
+  "name": "Astute — Quarterly Prep Pipeline (v2.0 scaffold)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Runs on a schedule, finds meetings ~48h out tagged 'Quarterly', and loads that client's profile (Karbon + the Client Profile Matrix sheet). All Google nodes use Karen's Astute credential.",
+        "height": 150,
+        "width": 460,
+        "color": 5
+      },
+      "id": "note_①_Trigger_&_Routing",
+      "name": "① Trigger & Routing",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -220
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "trigger",
+      "name": "Every 6 hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "getAll",
+        "returnAll": true,
+        "options": {
+          "timeMin": "={{ $now.plus(24, 'hours').toISO() }}",
+          "timeMax": "={{ $now.plus(72, 'hours').toISO() }}"
+        }
+      },
+      "id": "calendar",
+      "name": "Get calendar events (24-72h)",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [
+        240,
+        0
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.summary }}",
+              "rightValue": "Quarterly",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ]
+        }
+      },
+      "id": "filter",
+      "name": "Only 'Quarterly' meetings",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "=PASTE_CLIENT_PROFILE_MATRIX_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "client_name",
+              "lookupValue": "={{ $json.attendeesClientName || $json.summary }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "profile",
+      "name": "Lookup Client Profile",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        720,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "client_id",
+              "type": "string",
+              "value": "={{ $json.client_id }}"
+            },
+            {
+              "id": "c2",
+              "name": "client_name",
+              "type": "string",
+              "value": "={{ $json.client_name }}"
+            },
+            {
+              "id": "c3",
+              "name": "last_meeting_date",
+              "type": "string",
+              "value": "={{ $json.last_meeting_date }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "context",
+      "name": "Build Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Scaffold runs these in sequence for clarity. In production, fan them out as PARALLEL branches off 'Build Context' and re-join with a Merge before Phase ③. Each node is a placeholder: wire the real API call + Claude prompt per the Developer Requirements Spec (Sub-Workflows 1, 12-15, 18).",
+        "height": 170,
+        "width": 620,
+        "color": 5
+      },
+      "id": "note_②_Ingestion_—_everything",
+      "name": "② Ingestion — everything since the last meeting",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=PLACEHOLDER — see sticky note",
+        "options": {}
+      },
+      "id": "Karbon:_work_items_(open_+_c",
+      "name": "Karbon: work items (open + completed)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=PLACEHOLDER — see sticky note",
+        "options": {}
+      },
+      "id": "Client_emails_since_last_mee",
+      "name": "Client emails since last meeting",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Claude — commitments, questions, changes, unresolved threads\n// TODO (developer): implement per the Developer Requirements Spec.\nreturn $input.all();"
+      },
+      "id": "AI:_email_digest",
+      "name": "AI: email digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=PLACEHOLDER — see sticky note",
+        "options": {}
+      },
+      "id": "Fathom:_last_meeting_transcr",
+      "name": "Fathom: last meeting transcript",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Claude — promises made, cross-referenced vs Karbon work items\n// TODO (developer): implement per the Developer Requirements Spec.\nreturn $input.all();"
+      },
+      "id": "AI:_transcript_recap_(Done/P",
+      "name": "AI: transcript recap (Done/Pending/Blocked)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=PLACEHOLDER — see sticky note",
+        "options": {}
+      },
+      "id": "QBO:_financials_+_aging_+_un",
+      "name": "QBO: financials + aging + uncategorized",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Claude — month-end close status, hygiene flags, proposed categorizations\n// TODO (developer): implement per the Developer Requirements Spec.\nreturn $input.all();"
+      },
+      "id": "AI:_books_health_report",
+      "name": "AI: books health report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        590
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=PLACEHOLDER — see sticky note",
+        "options": {}
+      },
+      "id": "Drive:_tax_documents",
+      "name": "Drive: tax documents",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        590
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Claude — AGI, rates, carryforwards, elections, safe harbor, estimates paid\n// TODO (developer): implement per the Developer Requirements Spec.\nreturn $input.all();"
+      },
+      "id": "AI:_tax_position_extract",
+      "name": "AI: tax position extract",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        590
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=PLACEHOLDER — see sticky note",
+        "options": {}
+      },
+      "id": "Drive:_client_files_+_PMT_st",
+      "name": "Drive: client files + PMT status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        590
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "=PASTE_KAREN_EMAIL",
+        "subject": "=Prepping for {{ $json.client_name }} — any updates?",
+        "message": "Any updates, concerns, or topics to include for this client's quarterly meeting? Reply or leave blank.",
+        "options": {}
+      },
+      "id": "Gmail:_preparer_input_prompt",
+      "name": "Gmail: preparer input prompt",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        590
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Gmail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Screener reads the Tax Strategy Library sheet and evaluates every Firm-Approved strategy against the assembled client data. Estimate/comparison/scorecard follow. Wire each to the Claude API (or n8n AI nodes).",
+        "height": 150,
+        "width": 560,
+        "color": 5
+      },
+      "id": "note_③_Analysis",
+      "name": "③ Analysis",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "=PASTE_TAX_STRATEGY_LIBRARY_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gid=0"
+        },
+        "options": {}
+      },
+      "id": "readlib",
+      "name": "Read Strategy Library",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        240,
+        940
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Claude — screen Firm-Approved strategies vs client data; filter implemented/rejected; rank by est. savings; top 2-3 -> Blue J memo\n// TODO (developer): implement per the Developer Requirements Spec.\nreturn $input.all();"
+      },
+      "id": "AI:_Tax_Strategy_Screener",
+      "name": "AI: Tax Strategy Screener",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        940
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Claude/Sheets — quarterly estimates, safe harbor, with/without C-Corp comparison\n// TODO (developer): implement per the Developer Requirements Spec.\nreturn $input.all();"
+      },
+      "id": "AI:_Tax_estimate_+_entity_co",
+      "name": "AI: Tax estimate + entity comparison",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        940
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Claude — 4 metrics + CFO talking points framed in the tax story\n// TODO (developer): implement per the Developer Requirements Spec.\nreturn $input.all();"
+      },
+      "id": "AI:_Scorecard_+_financial_re",
+      "name": "AI: Scorecard + financial review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        940
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Compile the 9-section Meeting Brief (Google Doc), notify Karen with an Approve link, and WAIT. Nothing client-facing is produced until she approves (resume webhook).",
+        "height": 150,
+        "width": 560,
+        "color": 6
+      },
+      "id": "note_④_Meeting_Brief_&_Approv",
+      "name": "④ Meeting Brief & Approval Gate",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "title": "=Meeting Brief — {{ $json.client_name }} — {{ $now.toFormat('yyyy-MM-dd') }}",
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "=PASTE_ASTUTE_CLIENT_FOLDER_ID"
+        }
+      },
+      "id": "brief",
+      "name": "Create Meeting Brief (Doc)",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        240,
+        1300
+      ],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "=PASTE_KAREN_EMAIL",
+        "subject": "=Prep ready — {{ $json.client_name }} — approve to release",
+        "emailType": "html",
+        "message": "=Brief: {{ $json.documentUrl }}<br><br>Approve: {{ $execution.resumeUrl }}",
+        "options": {}
+      },
+      "id": "notify",
+      "name": "Notify Karen (Approve link)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        480,
+        1300
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Gmail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      },
+      "id": "gate",
+      "name": "APPROVAL GATE (wait)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        1300
+      ],
+      "webhookId": "astute-prep-approval"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.approved }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "approved",
+      "name": "Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Generate the deck (Slides or Gamma), create Karbon work items, schedule estimated-payment reminders, and append the run log. The 'not approved' path returns to revise the brief.",
+        "height": 150,
+        "width": 620,
+        "color": 5
+      },
+      "id": "note_⑤_Outputs_(after_approva",
+      "name": "⑤ Outputs (after approval)",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        1520
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=PLACEHOLDER — see sticky note",
+        "options": {}
+      },
+      "id": "Generate_deck_(Slides/Gamma_",
+      "name": "Generate deck (Slides/Gamma API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=PLACEHOLDER — see sticky note",
+        "options": {}
+      },
+      "id": "Karbon:_create_work_items",
+      "name": "Karbon: create work items",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Create scheduled reminders before each federal/CA estimated-payment due date (amounts + EFTPS / CA FTB Web Pay links)\n// TODO (developer): implement per the Developer Requirements Spec.\nreturn $input.all();"
+      },
+      "id": "Schedule_payment_reminders",
+      "name": "Schedule payment reminders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "=PASTE_RUN_LOG_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gid=0"
+        },
+        "mappingMode": "autoMapInputData",
+        "options": {}
+      },
+      "id": "runlog",
+      "name": "Append run log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        960,
+        1700
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "Revise_brief_&_re-notify",
+      "name": "Revise brief & re-notify",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        240,
+        1860
+      ]
+    },
+    {
+      "parameters": {
+        "content": "This is an importable BLUEPRINT of the v2.0 pipeline. Real: trigger, calendar routing, profile lookup, control flow, approval gate, output wiring. Placeholders (marked TODO / 'PLACEHOLDER'): each ingestion and AI node — wire the specific API call + Claude prompt per the Developer Requirements Spec. Replace all PASTE_* ids and select Karen's Astute credential on every Google/Gmail node. Validate against your n8n version before production.",
+        "height": 170,
+        "width": 900,
+        "color": 3
+      },
+      "id": "note_⚠_Scaffold_—_read_me",
+      "name": "⚠ Scaffold — read me",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Every 6 hours": {
+      "main": [
+        [
+          {
+            "node": "Get calendar events (24-72h)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get calendar events (24-72h)": {
+      "main": [
+        [
+          {
+            "node": "Only 'Quarterly' meetings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Only 'Quarterly' meetings": {
+      "main": [
+        [
+          {
+            "node": "Lookup Client Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Client Profile": {
+      "main": [
+        [
+          {
+            "node": "Build Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Context": {
+      "main": [
+        [
+          {
+            "node": "Karbon: work items (open + completed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Karbon: work items (open + completed)": {
+      "main": [
+        [
+          {
+            "node": "Client emails since last meeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Client emails since last meeting": {
+      "main": [
+        [
+          {
+            "node": "AI: email digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: email digest": {
+      "main": [
+        [
+          {
+            "node": "Fathom: last meeting transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fathom: last meeting transcript": {
+      "main": [
+        [
+          {
+            "node": "AI: transcript recap (Done/Pending/Blocked)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: transcript recap (Done/Pending/Blocked)": {
+      "main": [
+        [
+          {
+            "node": "QBO: financials + aging + uncategorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QBO: financials + aging + uncategorized": {
+      "main": [
+        [
+          {
+            "node": "AI: books health report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: books health report": {
+      "main": [
+        [
+          {
+            "node": "Drive: tax documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: tax documents": {
+      "main": [
+        [
+          {
+            "node": "AI: tax position extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: tax position extract": {
+      "main": [
+        [
+          {
+            "node": "Drive: client files + PMT status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: client files + PMT status": {
+      "main": [
+        [
+          {
+            "node": "Gmail: preparer input prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: preparer input prompt": {
+      "main": [
+        [
+          {
+            "node": "Read Strategy Library",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Strategy Library": {
+      "main": [
+        [
+          {
+            "node": "AI: Tax Strategy Screener",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: Tax Strategy Screener": {
+      "main": [
+        [
+          {
+            "node": "AI: Tax estimate + entity comparison",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: Tax estimate + entity comparison": {
+      "main": [
+        [
+          {
+            "node": "AI: Scorecard + financial review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: Scorecard + financial review": {
+      "main": [
+        [
+          {
+            "node": "Create Meeting Brief (Doc)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Meeting Brief (Doc)": {
+      "main": [
+        [
+          {
+            "node": "Notify Karen (Approve link)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Karen (Approve link)": {
+      "main": [
+        [
+          {
+            "node": "APPROVAL GATE (wait)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APPROVAL GATE (wait)": {
+      "main": [
+        [
+          {
+            "node": "Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved?": {
+      "main": [
+        [
+          {
+            "node": "Generate deck (Slides/Gamma API)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Revise brief & re-notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate deck (Slides/Gamma API)": {
+      "main": [
+        [
+          {
+            "node": "Karbon: create work items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Karbon: create work items": {
+      "main": [
+        [
+          {
+            "node": "Schedule payment reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule payment reminders": {
+      "main": [
+        [
+          {
+            "node": "Append run log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Revise brief & re-notify": {
+      "main": [
+        [
+          {
+            "node": "Create Meeting Brief (Doc)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Importable scaffold of the quarterly meeting prep pipeline. Runs under Karen's Astute Advisors credentials. Complete the ingestion/AI placeholder nodes per the Developer Requirements Specification."
+  }
+}

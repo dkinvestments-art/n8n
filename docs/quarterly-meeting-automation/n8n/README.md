@@ -1,9 +1,22 @@
-# n8n Seed Workflow — Automation Sheets (Astute Advisors Drive)
+# n8n Workflows — Astute Advisors Quarterly Prep
 
-This folder contains an **importable n8n workflow** that creates the three
-automation Google Sheets directly in **Karen's Astute Advisors Google Drive**,
-authenticated as her Astute account. Per `../DATA-GOVERNANCE.md`, nothing here
-touches any personal account.
+This folder contains **two importable n8n workflows**, both authenticated as
+Karen's Astute account (per `../DATA-GOVERNANCE.md` — no personal account is
+ever used):
+
+1. **`Astute-Seed-Automation-Sheets.workflow.json`** — one-time seed that
+   creates the three automation sheets in her Drive (documented below).
+2. **`Astute-Quarterly-Prep-Pipeline.workflow.json`** — the main v2.0 prep
+   pipeline **scaffold** (documented at the bottom).
+
+Run the seed workflow first (it creates the sheets the pipeline reads).
+
+---
+
+## Seed Workflow — Automation Sheets
+
+Creates the three automation Google Sheets directly in **Karen's Astute
+Advisors Google Drive**, authenticated as her Astute account.
 
 ## What it creates
 
@@ -57,3 +70,52 @@ node and parsed at run time, so there are no external file dependencies.
 - **Editing the library later**: edit the CSV, re-run `build_seed_workflow.py`,
   re-import — or just edit the live Google Sheet directly (the ongoing intake
   paths in the screener spec write there anyway).
+
+---
+
+## Main Pipeline — Quarterly Prep (v2.0 scaffold)
+
+`Astute-Quarterly-Prep-Pipeline.workflow.json` — an importable blueprint of the
+full v2.0 pipeline (35 nodes across 5 phases). Regenerate with
+`build_main_pipeline.py`.
+
+### What is real vs. placeholder
+
+**Real and functional** (imports and runs as a skeleton):
+- Schedule trigger → Google Calendar (events 24-72h out) → filter for
+  "Quarterly" → Client Profile Matrix lookup → Build Context
+- Control flow through all phases
+- **Approval gate** (Wait node, resume-on-webhook) → `Approved?` IF branch
+- Output wiring: deck → Karbon tasks → payment reminders → run log; the
+  not-approved path loops back to revise the brief
+
+**Placeholders you complete** (each is a labeled node with a TODO / sticky
+note pointing to the Developer Requirements Spec):
+- Ingestion: Karbon work items, client email digest, Fathom transcript recap,
+  QBO financials/aging/uncategorized + books health, tax-document extraction,
+  client file inventory + PMT, preparer input prompt
+- AI analysis: strategy screener, tax estimate + entity comparison, scorecard
+- Deck generation (Slides or Gamma) and Karbon task creation
+
+### Setup
+
+1. Import the JSON into Karen's n8n.
+2. Select **Karen's Astute Advisors Google credential** on every Google /
+   Gmail node.
+3. Replace every `PASTE_*` value:
+   - `PASTE_CLIENT_PROFILE_MATRIX_SHEET_ID`, `PASTE_TAX_STRATEGY_LIBRARY_SHEET_ID`,
+     `PASTE_RUN_LOG_SHEET_ID` (from the seed workflow's sheets)
+   - `PASTE_ASTUTE_CLIENT_FOLDER_ID`, `PASTE_KAREN_EMAIL`
+4. Complete each placeholder ingestion / AI node with its API call + Claude
+   prompt (Developer Requirements Spec, Sub-Workflows 1, 6, 12-20).
+5. In production, fan the Phase ② ingestion nodes into parallel branches with a
+   Merge before Phase ③ (the scaffold runs them in sequence for readability).
+
+### Same caveat as the seed workflow
+
+Authored against current n8n and structurally validated (JSON valid, all
+connections resolve, approval gate branches correctly), but **not executed
+against Karen's live n8n**. The developer should validate node parameters
+against the installed n8n version and complete the placeholders before
+production use. This is the blueprint to build against — not a finished,
+runnable-end-to-end automation.
