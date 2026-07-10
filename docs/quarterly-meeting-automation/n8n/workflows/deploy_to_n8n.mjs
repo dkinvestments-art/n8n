@@ -49,15 +49,33 @@ for (const extra of ["Astute-Seed-Automation-Sheets.workflow.json",
   if (existsSync(p) && !files.some(f => basename(f) === extra)) files.push(p);
 }
 
+/* Transport: Node's fetch does NOT honor HTTPS_PROXY. In proxied sandboxes
+ * (e.g. Claude Code cloud environments) we shell out to curl, which does —
+ * and which also picks up any required CA bundle from the environment. */
+import { execFileSync } from "node:child_process";
+const USE_CURL = !!(process.env.HTTPS_PROXY || process.env.https_proxy) && !flag("--no-curl");
+
 const api = async (method, path, body) => {
-  const res = await fetch(BASE + "/api/v1" + path, {
-    method,
-    headers: { "X-N8N-API-KEY": KEY, "content-type": "application/json", accept: "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const text = await res.text();
+  const url = BASE + "/api/v1" + path;
+  const headers = { "X-N8N-API-KEY": KEY, "content-type": "application/json", accept: "application/json" };
+  let status, text;
+  if (USE_CURL) {
+    const args = ["-sS", "--max-time", "60", "-X", method, url,
+                  "-H", "X-N8N-API-KEY: " + KEY, "-H", "content-type: application/json",
+                  "-H", "accept: application/json", "-w", "\n__HTTP_STATUS__:%{http_code}"];
+    if (body !== undefined) args.push("--data-binary", JSON.stringify(body));
+    const out = execFileSync("curl", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+    const m = out.match(/\n__HTTP_STATUS__:(\d+)\s*$/);
+    status = m ? Number(m[1]) : 0;
+    text = m ? out.slice(0, m.index) : out;
+  } else {
+    const res = await fetch(url, { method, headers,
+      body: body === undefined ? undefined : JSON.stringify(body) });
+    status = res.status;
+    text = await res.text();
+  }
   let json; try { json = JSON.parse(text); } catch { json = { raw: text }; }
-  if (!res.ok) throw new Error(method + " " + path + " -> " + res.status + ": " + text.slice(0, 300));
+  if (status < 200 || status >= 300) throw new Error(method + " " + path + " -> " + status + ": " + String(text).slice(0, 300));
   return json;
 };
 
