@@ -1,0 +1,276 @@
+{
+  "name": "QMP-15 Client File Inventory + PMT",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "input",
+      "name": "Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst fid = String(ctx.google_drive_folder ?? '').match(/[-\\w]{25,}/);\nconst pid = String(ctx.pmt_file_link ?? '').match(/[-\\w]{25,}/);\nreturn [{ json: { ...ctx, drive_folder_id: fid ? fid[0] : '', pmt_id: pid ? pid[0] : '' } }];\n"
+      },
+      "id": "Extract_folder_+_PMT_ids",
+      "name": "Extract folder + PMT ids",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "='{{ $json.drive_folder_id }}' in parents and trashed=false"
+            },
+            {
+              "name": "orderBy",
+              "value": "modifiedTime desc"
+            },
+            {
+              "name": "pageSize",
+              "value": "100"
+            },
+            {
+              "name": "fields",
+              "value": "files(id,name,mimeType,modifiedTime)"
+            }
+          ]
+        }
+      },
+      "id": "Drive_list_client_files",
+      "name": "Drive: list client files",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Extract folder + PMT ids').first().json.pmt_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "haspmt",
+      "name": "Has PMT file?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $('Extract folder + PMT ids').first().json.pmt_id }}/export?mimeType=text/csv",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api"
+      },
+      "id": "Export_PMT_(csv)",
+      "name": "Export PMT (csv)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        200
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst files = ($('Drive: list client files').first().json.files ?? []).map(f => ({ name: f.name, type: f.mimeType, modified: f.modifiedTime }));\nlet pmt = 'No PMT file on record';\ntry { const p = $('Export PMT (csv)').first().json; pmt = typeof p === 'string' ? p : (p.data ?? JSON.stringify(p)); } catch (e) {}\nconst userContent = 'Client: ' + ctx.client_name + '\\n\\n--- FILE LISTING ---\\n' + JSON.stringify(files) + '\\n\\n--- PMT SCHEDULE (csv) ---\\n' + String(pmt).slice(0, 20000);\nconst payload = {\n  model: 'claude-opus-4-8', max_tokens: 8000,\n  system: \"You are triaging a tax client's document folder before a quarterly meeting. You are given the file listing of the client's Drive folder and, when available, the contents of their payment (PMT) schedule. Identify which files are relevant to this meeting, and summarize the payment schedule status: what is scheduled, what has been paid, and what is upcoming \\u2014 so the brief can answer \\\"does the payments coordinator know what to pay?\\\". Do not invent files or payments. Output only the JSON schema.\",\n  messages: [{ role: 'user', content: userContent }],\n  output_config: { effort: 'high', format: { type: 'json_schema', schema: {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"relevant_files\", \"pmt_status\", \"pmt_upcoming\", \"gaps\"], \"properties\": {\"relevant_files\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"name\", \"why_relevant\"], \"properties\": {\"name\": {\"type\": \"string\"}, \"why_relevant\": {\"type\": \"string\"}}}}, \"pmt_status\": {\"type\": \"string\"}, \"pmt_upcoming\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"gaps\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}} } }\n};\nreturn [{ json: { payload } }];\n"
+      },
+      "id": "Build_request_inventory",
+      "name": "Build request: inventory",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}"
+      },
+      "id": "Claude_inventory",
+      "name": "Claude: inventory",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        300
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "REPLACE_ASTUTE_ANTHROPIC",
+          "name": "Karen Astute Advisors Anthropic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst text = $json.content?.[0]?.text ?? '{}';\nlet out; try { out = JSON.parse(text); } catch (e) { out = { parse_error: true, raw: text }; }\nreturn [{ json: { ...ctx, file_inventory: out } }];\n"
+      },
+      "id": "Parse_inventory",
+      "name": "Parse: inventory",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Extract folder + PMT ids",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract folder + PMT ids": {
+      "main": [
+        [
+          {
+            "node": "Drive: list client files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: list client files": {
+      "main": [
+        [
+          {
+            "node": "Has PMT file?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has PMT file?": {
+      "main": [
+        [
+          {
+            "node": "Export PMT (csv)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build request: inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export PMT (csv)": {
+      "main": [
+        [
+          {
+            "node": "Build request: inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build request: inventory": {
+      "main": [
+        [
+          {
+            "node": "Claude: inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: inventory": {
+      "main": [
+        [
+          {
+            "node": "Parse: inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Lists the full client Drive folder, reads the PMT schedule when present, and produces a relevance triage + payment schedule status. Returns ctx + file_inventory."
+  }
+}

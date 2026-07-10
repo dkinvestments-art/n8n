@@ -1,0 +1,355 @@
+{
+  "name": "QMP-09b Reclassification Apply",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "Apply_approved_reclassificatio",
+      "name": "Apply approved reclassifications",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Reclassification Review"
+        },
+        "options": {}
+      },
+      "id": "Read_Review_tab",
+      "name": "Read Review tab",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().filter(i =>\n  String(i.json.approved).toUpperCase() === 'TRUE' &&\n  String(i.json.applied).toUpperCase() !== 'TRUE' &&\n  i.json.txn_id && i.json.realm_id && i.json.proposed_account_id);\n"
+      },
+      "id": "Filter_approved,_unapplied",
+      "name": "Filter approved, unapplied",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://quickbooks.api.intuit.com/v3/company/{{ $json.realm_id }}/purchase/{{ $json.txn_id }}",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "minorversion",
+              "value": "73"
+            }
+          ]
+        }
+      },
+      "id": "QBO_get_purchase",
+      "name": "QBO: get purchase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "REPLACE_ASTUTE_QBO",
+          "name": "Karen Astute Advisors QuickBooks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $('Filter approved, unapplied').all().map(i => i.json);\nreturn $input.all().map((i, idx) => {\n  const row = rows[idx];\n  const p = i.json.Purchase ?? i.json;\n  const oldAccount = p.Line?.[0]?.AccountBasedExpenseLineDetail?.AccountRef?.name ?? '';\n  for (const l of (p.Line ?? [])) {\n    if (l.AccountBasedExpenseLineDetail) {\n      l.AccountBasedExpenseLineDetail.AccountRef = { value: String(row.proposed_account_id), name: row.proposed_account };\n    }\n  }\n  return { json: { realm_id: row.realm_id, row_number: row.row_number, client_id: row.client_id,\n    txn_id: row.txn_id, old_account: oldAccount, new_account: row.proposed_account,\n    approved_by: row.approved_by, body: p } };\n});\n"
+      },
+      "id": "Mutate_account_refs",
+      "name": "Mutate account refs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://quickbooks.api.intuit.com/v3/company/{{ $json.realm_id }}/purchase?minorversion=73",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}"
+      },
+      "id": "QBO_update_purchase",
+      "name": "QBO: update purchase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        300
+      ],
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "REPLACE_ASTUTE_QBO",
+          "name": "Karen Astute Advisors QuickBooks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $('Mutate account refs').all().map(i => i.json);\nreturn $input.all().map((i, idx) => ({ json: { applied_at: new Date().toISOString(),\n  client_id: rows[idx].client_id, txn_id: rows[idx].txn_id, old_account: rows[idx].old_account,\n  new_account: rows[idx].new_account, approved_by: rows[idx].approved_by,\n  row_number: rows[idx].row_number } }));\n"
+      },
+      "id": "To_audit_rows",
+      "name": "To audit rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Reclass Audit Log"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "Append_Audit_Log",
+      "name": "Append Audit Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1540,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(i => ({ json: { row_number: i.json.row_number, applied: 'TRUE' } }));\n"
+      },
+      "id": "To_applied_marks",
+      "name": "To applied marks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Reclassification Review"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "row_number"
+          ]
+        },
+        "options": {}
+      },
+      "id": "Mark_rows_applied",
+      "name": "Mark rows applied",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1980,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Apply approved reclassifications": {
+      "main": [
+        [
+          {
+            "node": "Read Review tab",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Review tab": {
+      "main": [
+        [
+          {
+            "node": "Filter approved, unapplied",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter approved, unapplied": {
+      "main": [
+        [
+          {
+            "node": "QBO: get purchase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QBO: get purchase": {
+      "main": [
+        [
+          {
+            "node": "Mutate account refs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mutate account refs": {
+      "main": [
+        [
+          {
+            "node": "QBO: update purchase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QBO: update purchase": {
+      "main": [
+        [
+          {
+            "node": "To audit rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "To audit rows": {
+      "main": [
+        [
+          {
+            "node": "Append Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Audit Log": {
+      "main": [
+        [
+          {
+            "node": "To applied marks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "To applied marks": {
+      "main": [
+        [
+          {
+            "node": "Mark rows applied",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Applies ONLY human-approved rows from the Reclassification Review tab to QBO (full-object update with the approved account), writes the audit log, and marks rows applied. Run manually or on a schedule after Karen approves rows."
+  }
+}

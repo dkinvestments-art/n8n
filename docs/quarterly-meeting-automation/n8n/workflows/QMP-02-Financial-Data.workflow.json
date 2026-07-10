@@ -1,0 +1,280 @@
+{
+  "name": "QMP-02 Financial Data (QBO)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "input",
+      "name": "Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://quickbooks.api.intuit.com/v3/company/{{ $('Input').first().json.qbo_realm_id }}/reports/ProfitAndLoss",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "minorversion",
+              "value": "73"
+            },
+            {
+              "name": "start_date",
+              "value": "={{ $now.startOf('year').toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "name": "end_date",
+              "value": "={{ $now.toFormat('yyyy-MM-dd') }}"
+            }
+          ]
+        }
+      },
+      "id": "QBO_P&L_current_YTD",
+      "name": "QBO: P&L current YTD",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        300
+      ],
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "REPLACE_ASTUTE_QBO",
+          "name": "Karen Astute Advisors QuickBooks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://quickbooks.api.intuit.com/v3/company/{{ $('Input').first().json.qbo_realm_id }}/reports/ProfitAndLoss",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "minorversion",
+              "value": "73"
+            },
+            {
+              "name": "start_date",
+              "value": "={{ $now.minus({ months: 12 }).toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "name": "end_date",
+              "value": "={{ $now.toFormat('yyyy-MM-dd') }}"
+            }
+          ]
+        }
+      },
+      "id": "QBO_P&L_last_12mo",
+      "name": "QBO: P&L last 12mo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "REPLACE_ASTUTE_QBO",
+          "name": "Karen Astute Advisors QuickBooks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://quickbooks.api.intuit.com/v3/company/{{ $('Input').first().json.qbo_realm_id }}/reports/ProfitAndLoss",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "minorversion",
+              "value": "73"
+            },
+            {
+              "name": "start_date",
+              "value": "={{ $now.minus({ months: 24 }).toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "name": "end_date",
+              "value": "={{ $now.minus({ months: 12 }).toFormat('yyyy-MM-dd') }}"
+            }
+          ]
+        }
+      },
+      "id": "QBO_P&L_prior_12mo",
+      "name": "QBO: P&L prior 12mo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "REPLACE_ASTUTE_QBO",
+          "name": "Karen Astute Advisors QuickBooks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://quickbooks.api.intuit.com/v3/company/{{ $('Input').first().json.qbo_realm_id }}/reports/BalanceSheet",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "minorversion",
+              "value": "73"
+            }
+          ]
+        }
+      },
+      "id": "QBO_Balance_Sheet",
+      "name": "QBO: Balance Sheet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "REPLACE_ASTUTE_QBO",
+          "name": "Karen Astute Advisors QuickBooks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nreturn [{ json: { ...ctx, financials: {\n  pnl_ytd: $('QBO: P&L current YTD').first().json,\n  pnl_last_12mo: $('QBO: P&L last 12mo').first().json,\n  pnl_prior_12mo: $('QBO: P&L prior 12mo').first().json,\n  balance_sheet: $('QBO: Balance Sheet').first().json,\n} } }];\n"
+      },
+      "id": "Combine_financials",
+      "name": "Combine financials",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "QBO: P&L current YTD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QBO: P&L current YTD": {
+      "main": [
+        [
+          {
+            "node": "QBO: P&L last 12mo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QBO: P&L last 12mo": {
+      "main": [
+        [
+          {
+            "node": "QBO: P&L prior 12mo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QBO: P&L prior 12mo": {
+      "main": [
+        [
+          {
+            "node": "QBO: Balance Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QBO: Balance Sheet": {
+      "main": [
+        [
+          {
+            "node": "Combine financials",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Pulls P&L (current YTD, last 12mo, prior 12mo) and Balance Sheet from the client's QBO. Returns ctx + financials."
+  }
+}

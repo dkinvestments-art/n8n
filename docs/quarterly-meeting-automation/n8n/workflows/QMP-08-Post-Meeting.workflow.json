@@ -1,0 +1,526 @@
+{
+  "name": "QMP-08 Post-Meeting Processing",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 2
+            }
+          ]
+        }
+      },
+      "id": "Every_2_hours",
+      "name": "Every 2 hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_CLIENT_PROFILE_MATRIX_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sheet1"
+        },
+        "options": {}
+      },
+      "id": "Read_client_profiles",
+      "name": "Read client profiles",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.fathom.ai/external/v1/meetings",
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "created_after",
+              "value": "={{ $now.minus({ hours: 6 }).toISO() }}"
+            },
+            {
+              "name": "include_transcript",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "id": "Fathom_recent_meetings",
+      "name": "Fathom: recent meetings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ASTUTE_FATHOM",
+          "name": "Karen Astute Advisors Fathom (header auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const profiles = $('Read client profiles').all().map(i => i.json).filter(p => p.client_name);\nconst meetings = $json.items ?? $json.meetings ?? (Array.isArray($json) ? $json : []);\nconst out = [];\nfor (const m of meetings) {\n  const hay = ((m.title ?? '') + ' ' + JSON.stringify(m.invitees ?? m.attendees ?? [])).toLowerCase();\n  const p = profiles.find(p => hay.includes(String(p.client_name).toLowerCase()));\n  if (!p) continue;\n  const transcript = typeof m.transcript === 'string' ? m.transcript : JSON.stringify(m.transcript ?? m.summary ?? '');\n  out.push({ json: { ...p, meeting_title: m.title ?? '', meeting_date: (m.created_at ?? '').slice(0, 10),\n    transcript_link: m.share_url ?? m.url ?? '', transcript: transcript.slice(0, 150000) } });\n}\nreturn out;\n"
+      },
+      "id": "Match_meetings_to_clients",
+      "name": "Match meetings to clients",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = { model: 'claude-opus-4-8', max_tokens: 8000,\n  system: \"You are processing the transcript of a completed quarterly tax-planning meeting. Extract every action item with its owner (firm or client), a suggested deadline, and priority. Also produce a 5-sentence meeting summary and note any tax strategies discussed that should be proposed for the firm's strategy library. Do not invent items. Output only the JSON schema.\",\n  messages: [{ role: 'user', content: 'Client: ' + $json.client_name + '\\nMeeting: ' + $json.meeting_title + ' (' + $json.meeting_date + ')\\n\\n--- TRANSCRIPT ---\\n' + $json.transcript }],\n  output_config: { effort: 'high', format: { type: 'json_schema', schema: {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"summary\", \"action_items\", \"strategies_discussed\"], \"properties\": {\"summary\": {\"type\": \"string\"}, \"action_items\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"item\", \"owner\", \"deadline\", \"priority\"], \"properties\": {\"item\": {\"type\": \"string\"}, \"owner\": {\"type\": \"string\", \"enum\": [\"firm\", \"client\"]}, \"deadline\": {\"type\": [\"string\", \"null\"]}, \"priority\": {\"type\": \"string\", \"enum\": [\"high\", \"medium\", \"low\"]}}}}, \"strategies_discussed\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}} } } };\nreturn $input.all().map(i => ({ json: { ...i.json, payload } }));\n"
+      },
+      "id": "Build_request_actions",
+      "name": "Build request: actions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}"
+      },
+      "id": "Claude_actions",
+      "name": "Claude: actions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        300
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "REPLACE_ASTUTE_ANTHROPIC",
+          "name": "Karen Astute Advisors Anthropic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((i, idx) => {\n  const src = $('Build request: actions').all()[idx].json;\n  const text = i.json.content?.[0]?.text ?? '{}';\n  let out; try { out = JSON.parse(text); } catch (e) { out = { parse_error: true, raw: text }; }\n  return { json: { ...src, payload: undefined, extracted: out } };\n});\n"
+      },
+      "id": "Parse_actions",
+      "name": "Parse: actions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(i => ({ json: {\n  client_id: i.json.client_id, client_name: i.json.client_name, meeting_date: i.json.meeting_date,\n  transcript_link: i.json.transcript_link, summary: i.json.extracted?.summary ?? '',\n  action_items: JSON.stringify(i.json.extracted?.action_items ?? []),\n  strategies_discussed: JSON.stringify(i.json.extracted?.strategies_discussed ?? []) } }));\n"
+      },
+      "id": "To_Meeting_History_row",
+      "name": "To Meeting History row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Meeting History"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "Append_Meeting_History",
+      "name": "Append Meeting History",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1760,
+        100
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const out = [];\nfor (const i of $input.all()) {\n  for (const a of (i.json.extracted?.action_items ?? []).filter(a => a.owner === 'firm')) {\n    out.push({ json: { karbon_client_id: i.json.karbon_client_id, client_name: i.json.client_name,\n      title: a.item, due: a.deadline, priority: a.priority } });\n  }\n}\nreturn out;\n"
+      },
+      "id": "Split_firm_actions",
+      "name": "Split firm actions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.karbonhq.com/v3/WorkItems",
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ Title: $json.title + ' (' + $json.client_name + ')', ClientKey: $json.karbon_client_id, DueDate: $json.due || undefined }) }}"
+      },
+      "id": "Karbon_create_work_item",
+      "name": "Karbon: create work item",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        260
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ASTUTE_KARBON",
+          "name": "Karen Astute Advisors Karbon (header auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const out = [];\nfor (const i of $input.all()) {\n  for (const s of (i.json.extracted?.strategies_discussed ?? [])) {\n    out.push({ json: { proposed_at: new Date().toISOString(), source: 'transcript:' + i.json.client_name,\n      strategy_name: String(s).slice(0, 120), description: String(s), status: 'Draft — pending Firm review' } });\n  }\n}\nreturn out;\n"
+      },
+      "id": "Split_strategy_proposals",
+      "name": "Split strategy proposals",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Proposed Strategies"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "Append_Proposed_Strategies",
+      "name": "Append Proposed Strategies",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1760,
+        420
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(i => ({ json: { row_number: i.json.row_number,\n  last_meeting_date: i.json.meeting_date, last_meeting_transcript_link: i.json.transcript_link } }));\n"
+      },
+      "id": "To_profile_update_row",
+      "name": "To profile update row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        580
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_CLIENT_PROFILE_MATRIX_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "row_number"
+          ]
+        },
+        "options": {}
+      },
+      "id": "Update_profile_row",
+      "name": "Update profile row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1760,
+        580
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "operation": "create",
+        "subject": "=Follow-up — our meeting on {{ $json.meeting_date }}",
+        "message": "={{ 'Hi ' + $json.client_name + ',\\n\\nThank you for meeting with us. Summary:\\n' + ($json.extracted?.summary ?? '') + '\\n\\nYour action items:\\n' + ($json.extracted?.action_items ?? []).filter(a => a.owner === 'client').map(a => '• ' + a.item).join('\\n') + '\\n\\nBest,\\nAstute Advisors' }}",
+        "options": {
+          "sendTo": "={{ $json.client_email }}"
+        }
+      },
+      "id": "draftfu",
+      "name": "Gmail: draft follow-up",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        740
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Gmail"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 2 hours": {
+      "main": [
+        [
+          {
+            "node": "Read client profiles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read client profiles": {
+      "main": [
+        [
+          {
+            "node": "Fathom: recent meetings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fathom: recent meetings": {
+      "main": [
+        [
+          {
+            "node": "Match meetings to clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match meetings to clients": {
+      "main": [
+        [
+          {
+            "node": "Build request: actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build request: actions": {
+      "main": [
+        [
+          {
+            "node": "Claude: actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: actions": {
+      "main": [
+        [
+          {
+            "node": "Parse: actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse: actions": {
+      "main": [
+        [
+          {
+            "node": "To Meeting History row",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Split firm actions",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Split strategy proposals",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "To profile update row",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Gmail: draft follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "To Meeting History row": {
+      "main": [
+        [
+          {
+            "node": "Append Meeting History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split firm actions": {
+      "main": [
+        [
+          {
+            "node": "Karbon: create work item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split strategy proposals": {
+      "main": [
+        [
+          {
+            "node": "Append Proposed Strategies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "To profile update row": {
+      "main": [
+        [
+          {
+            "node": "Update profile row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Every 2h: fetches recent Fathom meetings, matches them to clients, extracts action items + summary with Claude, creates Karbon work items for firm actions, writes Meeting History (feeds next quarter's recap), proposes discussed strategies to the library intake, updates the client profile row, and drafts the client follow-up email."
+  }
+}

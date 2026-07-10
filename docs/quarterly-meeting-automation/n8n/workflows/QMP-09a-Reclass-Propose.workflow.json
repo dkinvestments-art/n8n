@@ -1,0 +1,351 @@
+{
+  "name": "QMP-09a Reclassification Propose",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "Weekly_Monday_6am",
+      "name": "Weekly Monday 6am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_CLIENT_PROFILE_MATRIX_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sheet1"
+        },
+        "options": {}
+      },
+      "id": "Read_client_profiles",
+      "name": "Read client profiles",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().filter(i => i.json.qbo_realm_id).map(i => ({ json: i.json }));\n"
+      },
+      "id": "Clients_with_QBO",
+      "name": "Clients with QBO",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://quickbooks.api.intuit.com/v3/company/{{ $json.qbo_realm_id }}/query",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "minorversion",
+              "value": "73"
+            },
+            {
+              "name": "query",
+              "value": "SELECT * FROM Purchase ORDERBY TxnDate DESC MAXRESULTS 100"
+            }
+          ]
+        }
+      },
+      "id": "QBO_recent_purchases",
+      "name": "QBO: recent purchases",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "REPLACE_ASTUTE_QBO",
+          "name": "Karen Astute Advisors QuickBooks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://quickbooks.api.intuit.com/v3/company/{{ $('Clients with QBO').item.json.qbo_realm_id }}/query",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "minorversion",
+              "value": "73"
+            },
+            {
+              "name": "query",
+              "value": "SELECT Id, Name, AccountType FROM Account MAXRESULTS 500"
+            }
+          ]
+        }
+      },
+      "id": "QBO_chart_of_accounts",
+      "name": "QBO: chart of accounts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "REPLACE_ASTUTE_QBO",
+          "name": "Karen Astute Advisors QuickBooks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const clients = $('Clients with QBO').all().map(i => i.json);\nconst txns = $('QBO: recent purchases').all().map(i => i.json);\nconst accts = $('QBO: chart of accounts').all().map(i => i.json);\nconst out = [];\nfor (let idx = 0; idx < clients.length; idx++) {\n  const c = clients[idx];\n  const purchases = (txns[idx]?.QueryResponse?.Purchase ?? []);\n  const uncat = purchases.filter(p => (p.Line ?? []).some(l =>\n    (l.AccountBasedExpenseLineDetail?.AccountRef?.name ?? '').toLowerCase().includes('uncategor')));\n  if (!uncat.length) continue;\n  const chart = (accts[idx]?.QueryResponse?.Account ?? []).map(a => ({ id: a.Id, name: a.Name, type: a.AccountType }));\n  const compact = uncat.map(p => ({ id: p.Id, type: 'Purchase', date: p.TxnDate,\n    desc: p.EntityRef?.name ?? p.PaymentType ?? '', memo: p.PrivateNote ?? '', amount: p.TotalAmt }));\n  const payload = { model: 'claude-opus-4-8', max_tokens: 8000,\n    system: \"You are proposing QuickBooks categorizations for uncategorized transactions, for a human to approve. For each transaction propose the most likely expense/income account from the client's chart of accounts, with confidence. Never invent transactions; if unsure, use low confidence. These proposals are applied ONLY after human approval. Output only the JSON schema.\",\n    messages: [{ role: 'user', content: 'Client: ' + c.client_name + '\\n\\n--- CHART OF ACCOUNTS ---\\n' + JSON.stringify(chart) + '\\n\\n--- UNCATEGORIZED TRANSACTIONS ---\\n' + JSON.stringify(compact) }],\n    output_config: { effort: 'high', format: { type: 'json_schema', schema: {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"proposals\"], \"properties\": {\"proposals\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"txn_id\", \"txn_type\", \"date\", \"description\", \"amount\", \"proposed_account\", \"confidence\"], \"properties\": {\"txn_id\": {\"type\": \"string\"}, \"txn_type\": {\"type\": \"string\"}, \"date\": {\"type\": [\"string\", \"null\"]}, \"description\": {\"type\": \"string\"}, \"amount\": {\"type\": [\"number\", \"null\"]}, \"proposed_account\": {\"type\": \"string\"}, \"confidence\": {\"type\": \"string\", \"enum\": [\"high\", \"medium\", \"low\"]}}}}}} } } };\n  out.push({ json: { client_id: c.client_id, realm_id: c.qbo_realm_id, chart, payload } });\n}\nreturn out;\n"
+      },
+      "id": "Build_request_reclass_proposal",
+      "name": "Build request: reclass proposals",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}"
+      },
+      "id": "Claude_reclass_proposals",
+      "name": "Claude: reclass proposals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        300
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "REPLACE_ASTUTE_ANTHROPIC",
+          "name": "Karen Astute Advisors Anthropic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const srcs = $('Build request: reclass proposals').all().map(i => i.json);\nconst out = [];\n$input.all().forEach((i, idx) => {\n  const src = srcs[idx];\n  const text = i.json.content?.[0]?.text ?? '{}';\n  let parsed; try { parsed = JSON.parse(text); } catch (e) { parsed = { proposals: [] }; }\n  for (const pr of (parsed.proposals ?? [])) {\n    const acct = (src.chart ?? []).find(a => a.name.toLowerCase() === String(pr.proposed_account).toLowerCase());\n    out.push({ json: { client_id: src.client_id, realm_id: src.realm_id, txn_id: pr.txn_id,\n      txn_type: pr.txn_type, date: pr.date, description: pr.description, amount: pr.amount,\n      proposed_account: pr.proposed_account, proposed_account_id: acct?.id ?? '',\n      confidence: pr.confidence, approved: 'FALSE', applied: 'FALSE', approved_by: '' } });\n  }\n});\nreturn out;\n"
+      },
+      "id": "To_Review_rows",
+      "name": "To Review rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Reclassification Review"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "Append_Review_rows",
+      "name": "Append Review rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1760,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekly Monday 6am": {
+      "main": [
+        [
+          {
+            "node": "Read client profiles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read client profiles": {
+      "main": [
+        [
+          {
+            "node": "Clients with QBO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clients with QBO": {
+      "main": [
+        [
+          {
+            "node": "QBO: recent purchases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QBO: recent purchases": {
+      "main": [
+        [
+          {
+            "node": "QBO: chart of accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QBO: chart of accounts": {
+      "main": [
+        [
+          {
+            "node": "Build request: reclass proposals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build request: reclass proposals": {
+      "main": [
+        [
+          {
+            "node": "Claude: reclass proposals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: reclass proposals": {
+      "main": [
+        [
+          {
+            "node": "To Review rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "To Review rows": {
+      "main": [
+        [
+          {
+            "node": "Append Review rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Weekly: for every client with QBO access, pulls recent transactions + chart of accounts, has Claude propose categorizations for uncategorized items, and writes them to the Reclassification Review tab for human approval. Nothing is applied here."
+  }
+}

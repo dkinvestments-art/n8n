@@ -1,0 +1,239 @@
+{
+  "name": "QMP-19 Meeting Brief Compiler",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "input",
+      "name": "Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst userContent = 'Client: ' + ctx.client_name + '   Meeting: ' + (ctx.meeting_date ?? '') +\n'\\n\\nEMAIL DIGEST: ' + JSON.stringify(ctx.email_digest ?? null) +\n'\\nLAST-MEETING RECAP: ' + JSON.stringify(ctx.recap ?? null) +\n'\\nBOOKS HEALTH: ' + JSON.stringify(ctx.books_health ?? null) +\n'\\nTAX ESTIMATE: ' + JSON.stringify(ctx.tax_estimate ?? null) +\n'\\nSTRATEGY SCREENER: ' + JSON.stringify(ctx.strategies ?? null) +\n'\\nSCORECARD: ' + JSON.stringify(ctx.scorecard ?? null) +\n'\\nKARBON OPEN ITEMS: ' + JSON.stringify(ctx.karbon_items ?? null) +\n'\\nFILE INVENTORY / PMT: ' + JSON.stringify(ctx.file_inventory ?? null) +\n'\\nCLIENT QUESTIONNAIRE: ' + JSON.stringify(ctx.questionnaire ?? null) +\n'\\nPREPARER NOTES (Karen): ' + JSON.stringify(ctx.preparer_notes ?? null);\nconst payload = {\n  model: 'claude-opus-4-8',\n  max_tokens: 16000,\n  thinking: { type: 'adaptive' },\n  system: \"You are assembling the internal Meeting Brief a CPA will use to run a quarterly client meeting. You are given the outputs of every upstream step (email digest, last-meeting recap, books health, tax estimate, strategy screener, scorecard, Karbon items, questionnaire answers, and the preparer's own notes). Produce a single structured brief with the nine sections in the schema. Write for the preparer: concise, specific, decision-ready. Lead each section with what matters most. In \\\"Strategy Opportunities\\\", present the screener's candidates with their estimated savings and mark which need a Blue J memo \\u2014 as options to evaluate, never as recommendations. Frame the financial review inside the tax story. Do not introduce facts that aren't in the inputs. Output only the JSON schema.\",\n  messages: [{ role: 'user', content: userContent }],\n  output_config: { effort: 'high', format: { type: 'json_schema', schema: {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"executive_summary\", \"since_last_meeting\", \"follow_up_items\", \"financial_review\", \"books_health\", \"tax_position\", \"strategy_opportunities\", \"key_talking_points\", \"questions_for_client\"], \"properties\": {\"executive_summary\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"since_last_meeting\": {\"type\": \"string\"}, \"follow_up_items\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"item\", \"owner\"], \"properties\": {\"item\": {\"type\": \"string\"}, \"owner\": {\"type\": \"string\"}}}}, \"financial_review\": {\"type\": \"string\"}, \"books_health\": {\"type\": \"string\"}, \"tax_position\": {\"type\": \"string\"}, \"strategy_opportunities\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"strategy\", \"estimated_savings\", \"needs_memo\"], \"properties\": {\"strategy\": {\"type\": \"string\"}, \"estimated_savings\": {\"type\": [\"number\", \"null\"]}, \"needs_memo\": {\"type\": \"boolean\"}}}}, \"key_talking_points\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"questions_for_client\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}} } }\n};\nreturn [{ json: { ...$json, payload } }];\n"
+      },
+      "id": "Build_request_meeting_brief",
+      "name": "Build request: meeting brief",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}"
+      },
+      "id": "Claude_meeting_brief",
+      "name": "Claude: meeting brief",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "REPLACE_ASTUTE_ANTHROPIC",
+          "name": "Karen Astute Advisors Anthropic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Structured outputs: the JSON arrives as a string in content[0].text.\nconst text = $json.content?.[0]?.text ?? '{}';\nlet out; try { out = JSON.parse(text); } catch (e) { out = { parse_error: true, raw: text }; }\nconst ctx = $('Input').first().json;\nreturn [{ json: { ...ctx, brief: out } }];\n"
+      },
+      "id": "Parse_meeting_brief",
+      "name": "Parse: meeting brief",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $json;\nconst b = ctx.brief ?? {};\nconst money = (n) => n == null ? 'TBD' : ('$' + Math.round(n).toLocaleString('en-US'));\nconst lines = [];\nlines.push('MEETING BRIEF — ' + ctx.client_name + ' — ' + (ctx.meeting_date ?? ''));\nlines.push('Internal preparation document. Draft for professional review — not client-facing.');\nlines.push('');\nlines.push('1. EXECUTIVE SUMMARY');\n(b.executive_summary ?? []).forEach(s => lines.push('  • ' + s));\nlines.push(''); lines.push('2. SINCE LAST MEETING'); lines.push(b.since_last_meeting ?? '');\nlines.push(''); lines.push('3. FOLLOW-UP ITEMS');\n(b.follow_up_items ?? []).forEach(f => lines.push('  • [' + f.owner + '] ' + f.item));\nlines.push(''); lines.push('4. FINANCIAL REVIEW'); lines.push(b.financial_review ?? '');\nlines.push(''); lines.push('5. BOOKS HEALTH'); lines.push(b.books_health ?? '');\nlines.push(''); lines.push('6. TAX POSITION'); lines.push(b.tax_position ?? '');\nlines.push(''); lines.push('7. STRATEGY OPPORTUNITIES (to evaluate — not recommendations)');\n(b.strategy_opportunities ?? []).forEach(s => lines.push('  • ' + s.strategy + ' — est. ' + money(s.estimated_savings) + (s.needs_memo ? '  [needs Blue J memo + sign-off]' : '')));\nlines.push(''); lines.push('8. KEY TALKING POINTS');\n(b.key_talking_points ?? []).forEach((p, i) => lines.push('  ' + (i + 1) + '. ' + p));\nlines.push(''); lines.push('9. QUESTIONS FOR THE CLIENT');\n(b.questions_for_client ?? []).forEach(q => lines.push('  • ' + q));\nreturn [{ json: { ...ctx, brief_text: lines.join('\\n') } }];\n"
+      },
+      "id": "Render_brief_text",
+      "name": "Render brief text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "create",
+        "folderId": "PASTE_ASTUTE_BRIEFS_FOLDER_ID",
+        "title": "=Meeting Brief — {{ $json.client_name }} — {{ $now.toFormat('yyyy-MM-dd') }}"
+      },
+      "id": "createdoc",
+      "name": "Create Brief Doc",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Docs"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "update",
+        "documentURL": "={{ $json.id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $('Render brief text').first().json.brief_text }}"
+            }
+          ]
+        }
+      },
+      "id": "insertdoc",
+      "name": "Insert Brief Text",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Docs"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Render brief text').first().json;\nconst docId = $('Create Brief Doc').first().json.id ?? $('Create Brief Doc').first().json.documentId;\nreturn [{ json: { ...prev, brief_doc_id: docId, brief_doc_url: 'https://docs.google.com/document/d/' + docId + '/edit' } }];\n"
+      },
+      "id": "Return_brief_+_doc_url",
+      "name": "Return brief + doc url",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Build request: meeting brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build request: meeting brief": {
+      "main": [
+        [
+          {
+            "node": "Claude: meeting brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: meeting brief": {
+      "main": [
+        [
+          {
+            "node": "Parse: meeting brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse: meeting brief": {
+      "main": [
+        [
+          {
+            "node": "Render brief text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render brief text": {
+      "main": [
+        [
+          {
+            "node": "Create Brief Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Brief Doc": {
+      "main": [
+        [
+          {
+            "node": "Insert Brief Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Brief Text": {
+      "main": [
+        [
+          {
+            "node": "Return brief + doc url",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Compiles all upstream outputs into the 9-section Meeting Brief, renders it, and creates the Google Doc in the Astute briefs folder. Returns ctx + brief + brief_doc_url."
+  }
+}

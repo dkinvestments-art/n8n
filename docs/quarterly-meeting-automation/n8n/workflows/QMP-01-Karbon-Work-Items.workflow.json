@@ -1,0 +1,134 @@
+{
+  "name": "QMP-01 Karbon Work Items",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "input",
+      "name": "Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.karbonhq.com/v3/WorkItems",
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "$filter",
+              "value": "=ClientKey eq '{{ $('Input').first().json.karbon_client_id }}' and WorkStatus ne 'Completed'"
+            }
+          ]
+        }
+      },
+      "id": "Karbon_open_work_items",
+      "name": "Karbon: open work items",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ASTUTE_KARBON",
+          "name": "Karen Astute Advisors Karbon (header auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.karbonhq.com/v3/WorkItems",
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "$filter",
+              "value": "=ClientKey eq '{{ $('Input').first().json.karbon_client_id }}' and WorkStatus eq 'Completed' and CompletedDate ge {{ $('Input').first().json.last_meeting_date }}"
+            }
+          ]
+        }
+      },
+      "id": "Karbon_completed_since_last_me",
+      "name": "Karbon: completed since last meeting",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ASTUTE_KARBON",
+          "name": "Karen Astute Advisors Karbon (header auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst compact = (r) => ({ title: r.Title, status: r.WorkStatus, due: r.DueDate ?? null,\n  assignee: r.AssigneeEmailAddress ?? r.AssigneeName ?? null, type: r.WorkType ?? null });\nconst open = ($('Karbon: open work items').first().json.value ?? []).map(compact);\nconst completed = ($('Karbon: completed since last meeting').first().json.value ?? []).map(compact);\nreturn [{ json: { ...ctx, karbon_items: { open, completed } } }];\n"
+      },
+      "id": "Format_work_items",
+      "name": "Format work items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Karbon: open work items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Karbon: open work items": {
+      "main": [
+        [
+          {
+            "node": "Karbon: completed since last meeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Karbon: completed since last meeting": {
+      "main": [
+        [
+          {
+            "node": "Format work items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Pulls the client's Karbon work items: open items + items completed since the last meeting (the 'what we've done for you' story). Returns ctx + karbon_items."
+  }
+}

@@ -176,3 +176,29 @@ Real endpoints and a real Anthropic call, but not executed against Karen's live
 QBO/n8n from the build environment — the developer should do one validation run
 and confirm the QuickBooks + Anthropic credential types match the installed n8n
 version.
+
+---
+
+## FULL APP BUILD — `workflows/`
+
+The complete, importable implementation of the v2.0 system: **21 n8n workflows**
+covering every sub-workflow in the spec plus the master orchestrator, generated
+from three Python builders (`qmp_lib.py`, `build_sub_workflows.py`,
+`build_ops_workflows.py`) and validated by `validate.js` (JSON structure,
+connection resolution, Code-node compilation, `$('node')` reference resolution,
+runtime execution of every Claude payload builder, credential-placeholder
+conventions — all 21 pass).
+
+**Start here → `workflows/DEPLOYMENT.md`** — credentials, seed order, the 8
+shared IDs to paste, deck template placeholders, master wiring, and the
+one-client validation run.
+
+Pipeline shape: the master (6-hour tick) finds "Quarterly" calendar events
+36-60h out, dedupes against the Run Log, emails Karen for input, then chains
+Karbon items → comms digest → recap → tax docs → file inventory → financials →
+books health → payroll → preparer notes → tax estimate → scorecard → strategy
+screener → Meeting Brief (Google Doc) → **approval gate** → deck + payment
+schedule + Karbon work item + run log. Ops workflows run on their own
+schedules: post-meeting processing (2h), reclassification propose (weekly) /
+apply (manual), virtual rules engine (weekly), payment reminders (daily),
+preparer-input capture (hourly).

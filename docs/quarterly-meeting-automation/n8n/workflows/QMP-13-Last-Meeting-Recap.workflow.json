@@ -1,0 +1,192 @@
+{
+  "name": "QMP-13 Last-Meeting Recap",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "input",
+      "name": "Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Meeting History"
+        },
+        "options": {},
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "client_id",
+              "lookupValue": "={{ $('Input').first().json.client_id }}"
+            }
+          ]
+        }
+      },
+      "id": "Read_Meeting_History",
+      "name": "Read Meeting History",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst rows = $input.all().map(i => i.json).filter(r => r.client_id);\nrows.sort((a, b) => String(b.meeting_date).localeCompare(String(a.meeting_date)));\nconst last = rows[0] ?? null;\nreturn [{ json: { ...ctx, last_meeting_record: last } }];\n"
+      },
+      "id": "Pick_latest_meeting_record",
+      "name": "Pick latest meeting record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst userContent = 'Client: ' + ctx.client_name +\n'\\n\\n--- PRIOR MEETING TRANSCRIPT/SUMMARY ---\\n' + JSON.stringify($json.last_meeting_record ?? 'No prior meeting on record') +\n'\\n\\n--- CURRENT KARBON WORK ITEMS ---\\n' + JSON.stringify(ctx.karbon_items ?? {});\nconst payload = {\n  model: 'claude-opus-4-8',\n  max_tokens: 8000,\n  system: \"You are preparing a CPA for a quarterly client meeting. You are given the prior meeting's transcript/summary and the current list of Karbon work items for the client. For every promise or action item raised in the prior meeting, determine its status by cross-referencing the Karbon work items: Done, Pending, or Blocked. Only mark Done when a work item clearly shows completion. If you cannot tell, use Pending and say why. Do not invent work items. Output only the JSON schema.\",\n  messages: [{ role: 'user', content: userContent }],\n  output_config: { effort: 'high', format: { type: 'json_schema', schema: {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"promises\", \"strategies_discussed_not_implemented\", \"client_questions_raised\"], \"properties\": {\"promises\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"item\", \"owner\", \"status\", \"evidence\"], \"properties\": {\"item\": {\"type\": \"string\"}, \"owner\": {\"type\": \"string\", \"enum\": [\"firm\", \"client\", \"unclear\"]}, \"status\": {\"type\": \"string\", \"enum\": [\"done\", \"pending\", \"blocked\"]}, \"evidence\": {\"type\": \"string\"}}}}, \"strategies_discussed_not_implemented\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"client_questions_raised\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}} } }\n};\nreturn [{ json: { ...$json, payload } }];\n"
+      },
+      "id": "Build_request_recap",
+      "name": "Build request: recap",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}"
+      },
+      "id": "Claude_recap",
+      "name": "Claude: recap",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "REPLACE_ASTUTE_ANTHROPIC",
+          "name": "Karen Astute Advisors Anthropic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Structured outputs: the JSON arrives as a string in content[0].text.\nconst text = $json.content?.[0]?.text ?? '{}';\nlet out; try { out = JSON.parse(text); } catch (e) { out = { parse_error: true, raw: text }; }\nconst ctx = $('Input').first().json;\nreturn [{ json: { ...ctx, recap: out } }];\n"
+      },
+      "id": "Parse_recap",
+      "name": "Parse: recap",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Pick latest meeting record": {
+      "main": [
+        [
+          {
+            "node": "Build request: recap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build request: recap": {
+      "main": [
+        [
+          {
+            "node": "Claude: recap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: recap": {
+      "main": [
+        [
+          {
+            "node": "Parse: recap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Read Meeting History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Meeting History": {
+      "main": [
+        [
+          {
+            "node": "Pick latest meeting record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Reads the prior meeting's stored summary/transcript from the Meeting History tab (written by QMP-08 post-meeting) and cross-references promises against ctx.karbon_items -> Done/Pending/Blocked. Returns ctx + recap."
+  }
+}

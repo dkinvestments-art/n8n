@@ -1,0 +1,113 @@
+{
+  "name": "QMP-16 Preparer Input Capture",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyHour"
+            }
+          ]
+        },
+        "simple": true,
+        "filters": {
+          "q": "subject:\"Prep input:\""
+        },
+        "options": {}
+      },
+      "id": "gmailtrig",
+      "name": "Gmail: watch for prep input",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Gmail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(i => {\n  const m = i.json;\n  const subject = m.subject ?? m.Subject ?? '';\n  const client = (subject.split('Prep input:')[1] ?? '').trim();\n  const notes = (m.textPlain ?? m.snippet ?? '').slice(0, 4000);\n  return { json: { client_name: client, meeting_date: '', notes, received_at: new Date().toISOString() } };\n}).filter(i => i.json.client_name);\n"
+      },
+      "id": "Parse_prep_input",
+      "name": "Parse prep input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Preparer Notes"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "Append_Preparer_Notes",
+      "name": "Append Preparer Notes",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Gmail: watch for prep input": {
+      "main": [
+        [
+          {
+            "node": "Parse prep input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse prep input": {
+      "main": [
+        [
+          {
+            "node": "Append Preparer Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Watches Karen's Astute Gmail for replies with subject 'Prep input: <client>' and stores them in the Preparer Notes tab. Non-blocking: the master proceeds with or without notes."
+  }
+}

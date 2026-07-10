@@ -1,0 +1,118 @@
+{
+  "name": "QMP-05 Client Scorecard",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "input",
+      "name": "Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst userContent = 'Client: ' + ctx.client_name +\n'\\n--- P&L (current 12mo + prior 12mo) ---\\n' + JSON.stringify({ last12: ctx.financials?.pnl_last_12mo, prior12: ctx.financials?.pnl_prior_12mo }) +\n'\\n--- BALANCE SHEET ---\\n' + JSON.stringify(ctx.financials?.balance_sheet ?? {}) +\n'\\n--- PAYROLL ---\\n' + JSON.stringify(ctx.payroll ?? {});\nconst payload = {\n  model: 'claude-opus-4-8',\n  max_tokens: 8000,\n  system: \"You are building a 4-metric client scorecard and a short financial review for a quarterly meeting. Compute revenue (last 12 mo vs prior 12 mo), gross and net profit margin, and owner take-home (salary + distributions + benefits) for both periods. Then write a brief narrative that explains WHAT DRIVES the changes. Frame the story around tax and owner outcomes, not CFO-level detail. Flag any figure that looks like an accounting artifact rather than real performance. Output only the JSON schema.\",\n  messages: [{ role: 'user', content: userContent }],\n  output_config: { effort: 'high', format: { type: 'json_schema', schema: {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"revenue\", \"gross_margin\", \"net_margin\", \"owner_take_home\", \"narrative\", \"artifacts\"], \"properties\": {\"revenue\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"current\", \"prior\", \"pct_change\"], \"properties\": {\"current\": {\"type\": \"number\"}, \"prior\": {\"type\": \"number\"}, \"pct_change\": {\"type\": \"number\"}}}, \"gross_margin\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"current\", \"prior\"], \"properties\": {\"current\": {\"type\": \"number\"}, \"prior\": {\"type\": \"number\"}}}, \"net_margin\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"current\", \"prior\"], \"properties\": {\"current\": {\"type\": \"number\"}, \"prior\": {\"type\": \"number\"}}}, \"owner_take_home\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"current\", \"prior\"], \"properties\": {\"current\": {\"type\": \"number\"}, \"prior\": {\"type\": \"number\"}}}, \"narrative\": {\"type\": \"string\"}, \"artifacts\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}} } }\n};\nreturn [{ json: { ...$json, payload } }];\n"
+      },
+      "id": "Build_request_scorecard",
+      "name": "Build request: scorecard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}"
+      },
+      "id": "Claude_scorecard",
+      "name": "Claude: scorecard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "REPLACE_ASTUTE_ANTHROPIC",
+          "name": "Karen Astute Advisors Anthropic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Structured outputs: the JSON arrives as a string in content[0].text.\nconst text = $json.content?.[0]?.text ?? '{}';\nlet out; try { out = JSON.parse(text); } catch (e) { out = { parse_error: true, raw: text }; }\nconst ctx = $('Input').first().json;\nreturn [{ json: { ...ctx, scorecard: out } }];\n"
+      },
+      "id": "Parse_scorecard",
+      "name": "Parse: scorecard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Build request: scorecard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build request: scorecard": {
+      "main": [
+        [
+          {
+            "node": "Claude: scorecard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: scorecard": {
+      "main": [
+        [
+          {
+            "node": "Parse: scorecard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Builds the 4-metric scorecard + tax-story narrative from ctx.financials and ctx.payroll. Returns ctx + scorecard."
+  }
+}

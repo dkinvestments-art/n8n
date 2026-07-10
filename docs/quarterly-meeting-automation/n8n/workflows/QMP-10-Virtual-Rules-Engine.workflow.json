@@ -1,0 +1,517 @@
+{
+  "name": "QMP-10 Virtual Rules Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "Weekly_Monday_7am",
+      "name": "Weekly Monday 7am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Rules"
+        },
+        "options": {}
+      },
+      "id": "Read_Rules",
+      "name": "Read Rules",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_CLIENT_PROFILE_MATRIX_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sheet1"
+        },
+        "options": {}
+      },
+      "id": "Read_client_profiles",
+      "name": "Read client profiles",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rules = $('Read Rules').all().map(i => i.json).filter(r => String(r.active).toUpperCase() === 'TRUE');\nreturn $input.all().filter(i => i.json.qbo_realm_id).map(i => ({ json: { ...i.json, _rules: rules.filter(r => !r.client_id || r.client_id === i.json.client_id) } }));\n"
+      },
+      "id": "Clients_with_QBO_+_rules",
+      "name": "Clients with QBO + rules",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://quickbooks.api.intuit.com/v3/company/{{ $json.qbo_realm_id }}/query",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "minorversion",
+              "value": "73"
+            },
+            {
+              "name": "query",
+              "value": "SELECT * FROM Purchase ORDERBY TxnDate DESC MAXRESULTS 100"
+            }
+          ]
+        }
+      },
+      "id": "QBO_recent_purchases",
+      "name": "QBO: recent purchases",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "REPLACE_ASTUTE_QBO",
+          "name": "Karen Astute Advisors QuickBooks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const clients = $('Clients with QBO + rules').all().map(i => i.json);\nconst applies = []; const patterns = [];\n$input.all().forEach((i, idx) => {\n  const c = clients[idx];\n  const purchases = i.json.QueryResponse?.Purchase ?? [];\n  const counts = {};\n  for (const p of purchases) {\n    const uncat = (p.Line ?? []).some(l => (l.AccountBasedExpenseLineDetail?.AccountRef?.name ?? '').toLowerCase().includes('uncategor'));\n    if (!uncat) continue;\n    const desc = ((p.EntityRef?.name ?? '') + ' ' + (p.PrivateNote ?? '')).trim();\n    const rule = (c._rules ?? []).find(r => desc.toLowerCase().includes(String(r.contains).toLowerCase()) && r.target_account_id);\n    if (rule) {\n      applies.push({ json: { realm_id: c.qbo_realm_id, client_id: c.client_id, txn_id: p.Id,\n        target_account: rule.target_account, target_account_id: rule.target_account_id, rule_id: rule.rule_id } });\n    } else if (desc) {\n      counts[desc] = (counts[desc] ?? 0) + 1;\n      if (counts[desc] === 2) patterns.push({ json: { proposed_at: new Date().toISOString(),\n        client_id: c.client_id, pattern: desc, occurrences: 2, status: 'needs_review' } });\n    }\n  }\n});\nreturn [...applies.map(a => ({ json: { kind: 'apply', ...a.json } })),\n        ...patterns.map(p => ({ json: { kind: 'pattern', ...p.json } }))];\n"
+      },
+      "id": "Apply_rules___find_patterns",
+      "name": "Apply rules / find patterns",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.kind }}",
+              "rightValue": "apply",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "kindif",
+      "name": "Apply or pattern?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://quickbooks.api.intuit.com/v3/company/{{ $json.realm_id }}/purchase/{{ $json.txn_id }}",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "minorversion",
+              "value": "73"
+            }
+          ]
+        }
+      },
+      "id": "QBO_get_purchase",
+      "name": "QBO: get purchase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        200
+      ],
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "REPLACE_ASTUTE_QBO",
+          "name": "Karen Astute Advisors QuickBooks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $('Apply or pattern?').all(0).map(i => i.json);\nreturn $input.all().map((i, idx) => {\n  const row = rows[idx];\n  const p = i.json.Purchase ?? i.json;\n  for (const l of (p.Line ?? [])) {\n    if (l.AccountBasedExpenseLineDetail) {\n      l.AccountBasedExpenseLineDetail.AccountRef = { value: String(row.target_account_id), name: row.target_account };\n    }\n  }\n  return { json: { realm_id: row.realm_id, client_id: row.client_id, txn_id: row.txn_id,\n    new_account: row.target_account, rule_id: row.rule_id, body: p } };\n});\n"
+      },
+      "id": "Mutate_per_rule",
+      "name": "Mutate per rule",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://quickbooks.api.intuit.com/v3/company/{{ $json.realm_id }}/purchase?minorversion=73",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}"
+      },
+      "id": "QBO_update_purchase",
+      "name": "QBO: update purchase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        200
+      ],
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "REPLACE_ASTUTE_QBO",
+          "name": "Karen Astute Advisors QuickBooks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $('Mutate per rule').all().map(i => i.json);\nreturn $input.all().map((i, idx) => ({ json: { applied_at: new Date().toISOString(),\n  client_id: rows[idx].client_id, txn_id: rows[idx].txn_id, old_account: 'Uncategorized',\n  new_account: rows[idx].new_account, approved_by: 'rules-engine:' + rows[idx].rule_id } }));\n"
+      },
+      "id": "To_rules_audit_rows",
+      "name": "To rules audit rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Reclass Audit Log"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "Append_rules_audit",
+      "name": "Append rules audit",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2420,
+        200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(i => ({ json: { proposed_at: i.json.proposed_at, client_id: i.json.client_id,\n  pattern: i.json.pattern, occurrences: i.json.occurrences, status: i.json.status } }));\n"
+      },
+      "id": "To_pattern_rows",
+      "name": "To pattern rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Proposed Rules"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "Append_Proposed_Rules",
+      "name": "Append Proposed Rules",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1760,
+        420
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekly Monday 7am": {
+      "main": [
+        [
+          {
+            "node": "Read Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Rules": {
+      "main": [
+        [
+          {
+            "node": "Read client profiles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read client profiles": {
+      "main": [
+        [
+          {
+            "node": "Clients with QBO + rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clients with QBO + rules": {
+      "main": [
+        [
+          {
+            "node": "QBO: recent purchases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QBO: recent purchases": {
+      "main": [
+        [
+          {
+            "node": "Apply rules / find patterns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply rules / find patterns": {
+      "main": [
+        [
+          {
+            "node": "Apply or pattern?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply or pattern?": {
+      "main": [
+        [
+          {
+            "node": "QBO: get purchase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "To pattern rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QBO: get purchase": {
+      "main": [
+        [
+          {
+            "node": "Mutate per rule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mutate per rule": {
+      "main": [
+        [
+          {
+            "node": "QBO: update purchase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QBO: update purchase": {
+      "main": [
+        [
+          {
+            "node": "To rules audit rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "To rules audit rows": {
+      "main": [
+        [
+          {
+            "node": "Append rules audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "To pattern rows": {
+      "main": [
+        [
+          {
+            "node": "Append Proposed Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Weekly: applies the firm's own categorization rules (Rules tab) to uncategorized QBO transactions — n8n's replacement for QBO's non-API-editable bank rules. Unmatched recurring patterns are written to Proposed Rules for review."
+  }
+}

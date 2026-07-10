@@ -1,0 +1,261 @@
+{
+  "name": "QMP-03 Payroll Parse (manual stubs)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "input",
+      "name": "Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst m = String(ctx.google_drive_folder ?? '').match(/[-\\w]{25,}/);\nreturn [{ json: { ...ctx, drive_folder_id: m ? m[0] : '' } }];\n"
+      },
+      "id": "Extract_folder_id",
+      "name": "Extract folder id",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "='{{ $json.drive_folder_id }}' in parents and mimeType='application/pdf' and (name contains 'stub' or name contains 'Stub' or name contains 'payroll' or name contains 'Payroll')"
+            },
+            {
+              "name": "orderBy",
+              "value": "modifiedTime desc"
+            },
+            {
+              "name": "pageSize",
+              "value": "2"
+            },
+            {
+              "name": "fields",
+              "value": "files(id,name,modifiedTime)"
+            }
+          ]
+        }
+      },
+      "id": "Drive_list_pay_stub_PDFs",
+      "name": "Drive: list pay stub PDFs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const files = ($json.files ?? []).slice(0, 2);\nif (!files.length) { return [{ json: { no_stubs: true } }]; }\nreturn files.map(f => ({ json: f }));\n"
+      },
+      "id": "Split_file_list",
+      "name": "Split file list",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.id }}?alt=media",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api"
+      },
+      "id": "Drive_download_stub",
+      "name": "Drive: download stub",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst items = $input.all();\nconst docs = [];\nfor (const it of items) {\n  const b64 = it.binary?.data?.data;\n  if (b64) docs.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } });\n}\nif (!docs.length) { return [{ json: { ...ctx, payroll: { employees: [], notes: ['No pay stubs found in Drive folder'] } } }]; }\nconst payload = {\n  model: 'claude-opus-4-8', max_tokens: 8000,\n  system: \"You are extracting payroll data from uploaded pay stub documents for a CPA's tax projection. Extract per employee: gross pay YTD, federal withholding YTD, state withholding YTD, pay period, and pay frequency if visible. Extract only what is explicitly on the stubs; use null for anything not found. Output only the JSON schema.\",\n  messages: [{ role: 'user', content: [...docs, { type: 'text', text: 'Extract the payroll data from these pay stubs for client ' + ctx.client_name + '.' }] }],\n  output_config: { effort: 'high', format: { type: 'json_schema', schema: {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"employees\", \"notes\"], \"properties\": {\"employees\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"name\", \"gross_ytd\", \"federal_withholding_ytd\", \"state_withholding_ytd\", \"period_end\"], \"properties\": {\"name\": {\"type\": [\"string\", \"null\"]}, \"gross_ytd\": {\"type\": [\"number\", \"null\"]}, \"federal_withholding_ytd\": {\"type\": [\"number\", \"null\"]}, \"state_withholding_ytd\": {\"type\": [\"number\", \"null\"]}, \"period_end\": {\"type\": [\"string\", \"null\"]}}}}, \"notes\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}} } }\n};\nreturn [{ json: { payload } }];\n"
+      },
+      "id": "Build_request_payroll",
+      "name": "Build request: payroll",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}"
+      },
+      "id": "Claude_payroll",
+      "name": "Claude: payroll",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        300
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "REPLACE_ASTUTE_ANTHROPIC",
+          "name": "Karen Astute Advisors Anthropic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nif ($json.payroll) { return [{ json: $json }]; }\nconst text = $json.content?.[0]?.text ?? '{}';\nlet out; try { out = JSON.parse(text); } catch (e) { out = { parse_error: true, raw: text }; }\nreturn [{ json: { ...ctx, payroll: out } }];\n"
+      },
+      "id": "Parse_payroll",
+      "name": "Parse: payroll",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Extract folder id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract folder id": {
+      "main": [
+        [
+          {
+            "node": "Drive: list pay stub PDFs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: list pay stub PDFs": {
+      "main": [
+        [
+          {
+            "node": "Split file list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split file list": {
+      "main": [
+        [
+          {
+            "node": "Drive: download stub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: download stub": {
+      "main": [
+        [
+          {
+            "node": "Build request: payroll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build request: payroll": {
+      "main": [
+        [
+          {
+            "node": "Claude: payroll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: payroll": {
+      "main": [
+        [
+          {
+            "node": "Parse: payroll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Reads the newest pay stub PDFs the team manually uploaded to the client's Drive folder and has Claude extract YTD withholdings. No payroll system connections — per DATA-GOVERNANCE. Returns ctx + payroll."
+  }
+}

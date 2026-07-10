@@ -1,0 +1,209 @@
+{
+  "name": "QMP-11 Payment Reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "Daily_8am",
+      "name": "Daily 8am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Payment Schedule"
+        },
+        "options": {}
+      },
+      "id": "Read_Payment_Schedule",
+      "name": "Read Payment Schedule",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nreturn $input.all().filter(i => {\n  const r = i.json;\n  if (String(r.approved).toUpperCase() !== 'TRUE') return false;\n  if (String(r.reminded).toUpperCase() === 'TRUE') return false;\n  const d = new Date(r.due_date);\n  if (isNaN(d)) return false;\n  const days = (d - now) / 86400000;\n  return days >= -1 && days <= 7;\n});\n"
+      },
+      "id": "Filter_due_within_7_days",
+      "name": "Filter due within 7 days",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.client_email }}",
+        "subject": "=Estimated tax payment reminder — {{ $json.quarter }} due {{ $json.due_date }}",
+        "message": "={{ 'Hi ' + $json.client_name + ',\\n\\nA reminder that your ' + $json.quarter + ' estimated tax payments are due ' + $json.due_date + ':\\n\\n• Federal: $' + $json.federal + '  (pay at https://www.eftps.gov or IRS Direct Pay)\\n• State: $' + $json.state + '  (CA: https://www.ftb.ca.gov/pay)\\n\\nQuestions? Just reply to this email.\\n\\nAstute Advisors' }}",
+        "options": {
+          "ccList": "PASTE_CHRISTINA_EMAIL"
+        }
+      },
+      "id": "remindsend",
+      "name": "Gmail: send reminder",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Gmail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $('Filter due within 7 days').all().map(i => i.json);\nreturn $input.all().map((i, idx) => ({ json: { row_number: rows[idx].row_number, reminded: 'TRUE' } }));\n"
+      },
+      "id": "To_reminded_marks",
+      "name": "To reminded marks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Payment Schedule"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "row_number"
+          ]
+        },
+        "options": {}
+      },
+      "id": "Mark_reminded",
+      "name": "Mark reminded",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1100,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily 8am": {
+      "main": [
+        [
+          {
+            "node": "Read Payment Schedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Payment Schedule": {
+      "main": [
+        [
+          {
+            "node": "Filter due within 7 days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter due within 7 days": {
+      "main": [
+        [
+          {
+            "node": "Gmail: send reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: send reminder": {
+      "main": [
+        [
+          {
+            "node": "To reminded marks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "To reminded marks": {
+      "main": [
+        [
+          {
+            "node": "Mark reminded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Daily 8am: reads the Payment Schedule tab and emails the client (cc the payments coordinator) ahead of each approved federal/state due date. Marks rows reminded."
+  }
+}

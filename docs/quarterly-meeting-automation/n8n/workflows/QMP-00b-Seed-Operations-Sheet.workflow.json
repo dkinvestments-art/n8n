@@ -1,0 +1,109 @@
+{
+  "name": "QMP-00b Seed Operations Sheet",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "Run_once_to_seed_ops_sheet",
+      "name": "Run once to seed ops sheet",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const tabs = {\"Run Log\": [\"run_date\", \"client_id\", \"client_name\", \"meeting_date\", \"status\", \"brief_url\", \"deck_url\", \"flags\"], \"Meeting History\": [\"client_id\", \"client_name\", \"meeting_date\", \"transcript_link\", \"summary\", \"action_items\", \"strategies_discussed\"], \"Preparer Notes\": [\"client_name\", \"meeting_date\", \"notes\", \"received_at\"], \"Payment Schedule\": [\"client_id\", \"client_name\", \"client_email\", \"quarter\", \"due_date\", \"federal\", \"state\", \"approved\", \"reminded\", \"notes\"], \"Reclassification Review\": [\"client_id\", \"realm_id\", \"txn_id\", \"txn_type\", \"date\", \"description\", \"amount\", \"proposed_account\", \"proposed_account_id\", \"confidence\", \"approved\", \"applied\", \"approved_by\"], \"Reclass Audit Log\": [\"applied_at\", \"client_id\", \"txn_id\", \"old_account\", \"new_account\", \"approved_by\"], \"Rules\": [\"rule_id\", \"client_id\", \"match_field\", \"contains\", \"target_account\", \"target_account_id\", \"active\"], \"Proposed Rules\": [\"proposed_at\", \"client_id\", \"pattern\", \"occurrences\", \"status\"], \"Proposed Strategies\": [\"proposed_at\", \"source\", \"strategy_name\", \"description\", \"status\"]};\nconst sheets = Object.entries(tabs).map(([title, headers]) => ({\n  properties: { title },\n  data: [{ rowData: [{ values: headers.map(h => ({ userEnteredValue: { stringValue: h } })) }] }]\n}));\nreturn [{ json: { payload: { properties: { title: 'QMP Operations' }, sheets } } }];\n"
+      },
+      "id": "Build_spreadsheet_body",
+      "name": "Build spreadsheet body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}"
+      },
+      "id": "Sheets_create_QMP_Operations",
+      "name": "Sheets: create QMP Operations",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { spreadsheetId: $json.spreadsheetId, url: $json.spreadsheetUrl } }];\n"
+      },
+      "id": "Return_spreadsheet_id",
+      "name": "Return spreadsheet id",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Run once to seed ops sheet": {
+      "main": [
+        [
+          {
+            "node": "Build spreadsheet body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build spreadsheet body": {
+      "main": [
+        [
+          {
+            "node": "Sheets: create QMP Operations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets: create QMP Operations": {
+      "main": [
+        [
+          {
+            "node": "Return spreadsheet id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "One-time: creates the 'QMP Operations' spreadsheet with all operational tabs and header rows (Run Log, Meeting History, Preparer Notes, Payment Schedule, Reclassification Review, Reclass Audit Log, Rules, Proposed Rules, Proposed Strategies). Paste the returned spreadsheetId wherever PASTE_QMP_OPERATIONS_SHEET_ID appears."
+  }
+}

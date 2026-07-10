@@ -1,0 +1,1192 @@
+{
+  "name": "QMP-MASTER Quarterly Prep Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "Every_6_hours",
+      "name": "Every 6 hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "getAll",
+        "returnAll": true,
+        "calendar": {
+          "__rl": true,
+          "mode": "list",
+          "value": "primary"
+        },
+        "options": {
+          "timeMin": "={{ $now.plus({ hours: 36 }).toISO() }}",
+          "timeMax": "={{ $now.plus({ hours: 60 }).toISO() }}"
+        }
+      },
+      "id": "cal",
+      "name": "Get calendar events (36-60h)",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [
+        220,
+        300
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Calendar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const events = $input.all().map(i => i.json).filter(e => String(e.summary ?? '').toLowerCase().includes('quarterly'));\nreturn [{ json: { events: events.map(e => ({ summary: e.summary, start: e.start?.dateTime ?? e.start?.date ?? '' })) } }];\n"
+      },
+      "id": "Collect_quarterly_events",
+      "name": "Collect quarterly events",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_CLIENT_PROFILE_MATRIX_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sheet1"
+        },
+        "options": {}
+      },
+      "id": "Read_client_profiles",
+      "name": "Read client profiles",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        660,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Run Log"
+        },
+        "options": {}
+      },
+      "id": "Read_Run_Log",
+      "name": "Read Run Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        880,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const events = $('Collect quarterly events').first().json.events ?? [];\nconst profiles = $('Read client profiles').all().map(i => i.json).filter(p => p.client_name);\nconst log = $('Read Run Log').all().map(i => i.json);\nfor (const e of events) {\n  const p = profiles.find(p => String(e.summary).toLowerCase().includes(String(p.client_name).toLowerCase()));\n  if (!p) continue;\n  const meetingDate = String(e.start).slice(0, 10);\n  const already = log.some(r => r.client_id === p.client_id && r.meeting_date === meetingDate);\n  if (already) continue;\n  return [{ json: { ...p, meeting_date: meetingDate, meeting_summary: e.summary, questionnaire: null } }];\n}\nreturn [];\n"
+      },
+      "id": "Match_+_dedupe_+_take_one",
+      "name": "Match + dedupe + take one",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "PASTE_KAREN_EMAIL",
+        "subject": "=Prep input: {{ $json.client_name }}",
+        "message": "={{ 'Prepping for ' + $json.client_name + ' on ' + $json.meeting_date + '. Any updates, concerns, or topics to include? Reply to this email (keep the subject) or ignore to skip.' }}",
+        "options": {}
+      },
+      "id": "Ask_Karen_for_updates",
+      "name": "Ask Karen for updates",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Gmail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $('Match + dedupe + take one').first().json }];\n"
+      },
+      "id": "Ctx_after_ask",
+      "name": "Ctx after ask",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "QMP-01 Karbon Work Items"
+        },
+        "mode": "once",
+        "options": {}
+      },
+      "id": "run_QMP-01_Karbon_Work_Items",
+      "name": "Run: QMP-01 Karbon Work Items",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        220,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "QMP-12 Client Communications Digest"
+        },
+        "mode": "once",
+        "options": {}
+      },
+      "id": "run_QMP-12_Client_Communicatio",
+      "name": "Run: QMP-12 Client Communications Digest",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        440,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "QMP-13 Last-Meeting Recap"
+        },
+        "mode": "once",
+        "options": {}
+      },
+      "id": "run_QMP-13_Last-Meeting_Recap",
+      "name": "Run: QMP-13 Last-Meeting Recap",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        660,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "QMP-14 Tax Document Intelligence"
+        },
+        "mode": "once",
+        "options": {}
+      },
+      "id": "run_QMP-14_Tax_Document_Intell",
+      "name": "Run: QMP-14 Tax Document Intelligence",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "QMP-15 Client File Inventory + PMT"
+        },
+        "mode": "once",
+        "options": {}
+      },
+      "id": "run_QMP-15_Client_File_Invento",
+      "name": "Run: QMP-15 Client File Inventory + PMT",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1100,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "QMP-02 Financial Data (QBO)"
+        },
+        "mode": "once",
+        "options": {}
+      },
+      "id": "run_QMP-02_Financial_Data_(QBO",
+      "name": "Run: QMP-02 Financial Data (QBO)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1320,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "QMP-18 Books Health (sub)"
+        },
+        "mode": "once",
+        "options": {}
+      },
+      "id": "run_QMP-18_Books_Health_(sub)",
+      "name": "Run: QMP-18 Books Health (sub)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1540,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "QMP-03 Payroll Parse (manual stubs)"
+        },
+        "mode": "once",
+        "options": {}
+      },
+      "id": "run_QMP-03_Payroll_Parse_(manu",
+      "name": "Run: QMP-03 Payroll Parse (manual stubs)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1760,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Preparer Notes"
+        },
+        "options": {},
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "client_name",
+              "lookupValue": "={{ $('Run: QMP-03 Payroll Parse (manual stubs)').first().json.client_name }}"
+            }
+          ]
+        }
+      },
+      "id": "Read_Preparer_Notes",
+      "name": "Read Preparer Notes",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        820
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Run: QMP-03 Payroll Parse (manual stubs)').first().json;\nconst rows = $input.all().map(i => i.json).filter(r => r.notes);\nrows.sort((a, b) => String(b.received_at).localeCompare(String(a.received_at)));\nreturn [{ json: { ...ctx, preparer_notes: rows[0]?.notes ?? null } }];\n"
+      },
+      "id": "Merge_preparer_notes",
+      "name": "Merge preparer notes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "QMP-04 Tax Estimate + Entity Comparison"
+        },
+        "mode": "once",
+        "options": {}
+      },
+      "id": "run_QMP-04_Tax_Estimate_+_Enti",
+      "name": "Run: QMP-04 Tax Estimate + Entity Comparison",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        660,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "QMP-05 Client Scorecard"
+        },
+        "mode": "once",
+        "options": {}
+      },
+      "id": "run_QMP-05_Client_Scorecard",
+      "name": "Run: QMP-05 Client Scorecard",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "QMP-17 Tax Strategy Screener"
+        },
+        "mode": "once",
+        "options": {}
+      },
+      "id": "run_QMP-17_Tax_Strategy_Screen",
+      "name": "Run: QMP-17 Tax Strategy Screener",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1100,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "QMP-19 Meeting Brief Compiler"
+        },
+        "mode": "once",
+        "options": {}
+      },
+      "id": "run_QMP-19_Meeting_Brief_Compi",
+      "name": "Run: QMP-19 Meeting Brief Compiler",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1320,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "PASTE_KAREN_EMAIL",
+        "subject": "=Prep ready — {{ $json.client_name }} — approve to release",
+        "emailType": "html",
+        "message": "={{ '<p>Meeting Brief for <b>' + $json.client_name + '</b> (' + $json.meeting_date + ') is ready.</p><p><a href=\"' + $json.brief_doc_url + '\">Open the brief</a></p><p><a href=\"' + $execution.resumeUrl + '?approved=true\">✅ Approve — generate deck + reminders</a><br><a href=\"' + $execution.resumeUrl + '?approved=false\">✋ Request changes</a></p>' }}",
+        "options": {}
+      },
+      "id": "notify",
+      "name": "Notify Karen (approve link)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        820
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Gmail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      },
+      "id": "gate",
+      "name": "APPROVAL GATE (wait)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1760,
+        820
+      ],
+      "webhookId": "qmp-prep-approval"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.query?.approved ?? $json.approved ?? '' }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "approvedif",
+      "name": "Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $('Run: QMP-19 Meeting Brief Compiler').first().json }];\n"
+      },
+      "id": "Restore_ctx_(approved)",
+      "name": "Restore ctx (approved)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        1080
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "QMP-20 Presentation Deck"
+        },
+        "mode": "once",
+        "options": {}
+      },
+      "id": "run_QMP-20_Presentation_Deck",
+      "name": "Run: QMP-20 Presentation Deck",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        440,
+        1080
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $json;\nreturn (ctx.tax_estimate?.quarterly_payments ?? []).map(q => ({ json: {\n  client_id: ctx.client_id, client_name: ctx.client_name, client_email: ctx.client_email,\n  quarter: q.quarter, due_date: q.due_date, federal: q.federal, state: q.state,\n  approved: 'TRUE', reminded: 'FALSE', notes: 'auto from prep ' + (ctx.meeting_date ?? '') } }));\n"
+      },
+      "id": "To_payment_schedule_rows",
+      "name": "To payment schedule rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        1080
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Payment Schedule"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "Append_Payment_Schedule",
+      "name": "Append Payment Schedule",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        880,
+        1080
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.karbonhq.com/v3/WorkItems",
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ Title: 'Quarterly meeting — ' + $('Restore ctx (approved)').first().json.client_name + ' — review brief before ' + $('Restore ctx (approved)').first().json.meeting_date, ClientKey: $('Restore ctx (approved)').first().json.karbon_client_id, DueDate: $('Restore ctx (approved)').first().json.meeting_date }) }}"
+      },
+      "id": "Karbon_meeting_work_item",
+      "name": "Karbon: meeting work item",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        1080
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ASTUTE_KARBON",
+          "name": "Karen Astute Advisors Karbon (header auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Run: QMP-20 Presentation Deck').first().json;\nreturn [{ json: { run_date: new Date().toISOString(), client_id: ctx.client_id,\n  client_name: ctx.client_name, meeting_date: ctx.meeting_date, status: 'approved',\n  brief_url: ctx.brief_doc_url ?? '', deck_url: ctx.deck_url ?? '',\n  flags: JSON.stringify(ctx.tax_estimate?.anomalies ?? []) } }];\n"
+      },
+      "id": "To_run_log_row",
+      "name": "To run log row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        1080
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Run Log"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "Append_Run_Log",
+      "name": "Append Run Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1540,
+        1080
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "PASTE_KAREN_EMAIL",
+        "subject": "=✓ Prep complete — {{ $('Run: QMP-20 Presentation Deck').first().json.client_name }}",
+        "message": "={{ 'Deck: ' + $('Run: QMP-20 Presentation Deck').first().json.deck_url + '\\nBrief: ' + $('Run: QMP-20 Presentation Deck').first().json.brief_doc_url + '\\nPayment reminders scheduled.' }}",
+        "options": {}
+      },
+      "id": "Notify_prep_complete",
+      "name": "Notify: prep complete",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        1080
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Gmail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Run: QMP-19 Meeting Brief Compiler').first().json;\nreturn [{ json: { run_date: new Date().toISOString(), client_id: ctx.client_id,\n  client_name: ctx.client_name, meeting_date: ctx.meeting_date, status: 'changes_requested',\n  brief_url: ctx.brief_doc_url ?? '', deck_url: '', flags: '' } }];\n"
+      },
+      "id": "To_run_log_row_(changes)",
+      "name": "To run log row (changes)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        1340
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_QMP_OPERATIONS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Run Log"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "Append_Run_Log_(changes)",
+      "name": "Append Run Log (changes)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        440,
+        1340
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "PASTE_KAREN_EMAIL",
+        "subject": "=Changes requested — {{ $('Run: QMP-19 Meeting Brief Compiler').first().json.client_name }}",
+        "message": "={{ 'Noted. Edit the brief doc directly, then re-run the prep from n8n (delete the Run Log row for this meeting first so the orchestrator picks it up again): ' + $('Run: QMP-19 Meeting Brief Compiler').first().json.brief_doc_url }}",
+        "options": {}
+      },
+      "id": "Notify_changes_requested",
+      "name": "Notify: changes requested",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        660,
+        1340
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Gmail"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 6 hours": {
+      "main": [
+        [
+          {
+            "node": "Get calendar events (36-60h)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get calendar events (36-60h)": {
+      "main": [
+        [
+          {
+            "node": "Collect quarterly events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect quarterly events": {
+      "main": [
+        [
+          {
+            "node": "Read client profiles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read client profiles": {
+      "main": [
+        [
+          {
+            "node": "Read Run Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Run Log": {
+      "main": [
+        [
+          {
+            "node": "Match + dedupe + take one",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match + dedupe + take one": {
+      "main": [
+        [
+          {
+            "node": "Ask Karen for updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask Karen for updates": {
+      "main": [
+        [
+          {
+            "node": "Ctx after ask",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ctx after ask": {
+      "main": [
+        [
+          {
+            "node": "Run: QMP-01 Karbon Work Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run: QMP-01 Karbon Work Items": {
+      "main": [
+        [
+          {
+            "node": "Run: QMP-12 Client Communications Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run: QMP-12 Client Communications Digest": {
+      "main": [
+        [
+          {
+            "node": "Run: QMP-13 Last-Meeting Recap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run: QMP-13 Last-Meeting Recap": {
+      "main": [
+        [
+          {
+            "node": "Run: QMP-14 Tax Document Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run: QMP-14 Tax Document Intelligence": {
+      "main": [
+        [
+          {
+            "node": "Run: QMP-15 Client File Inventory + PMT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run: QMP-15 Client File Inventory + PMT": {
+      "main": [
+        [
+          {
+            "node": "Run: QMP-02 Financial Data (QBO)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run: QMP-02 Financial Data (QBO)": {
+      "main": [
+        [
+          {
+            "node": "Run: QMP-18 Books Health (sub)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run: QMP-18 Books Health (sub)": {
+      "main": [
+        [
+          {
+            "node": "Run: QMP-03 Payroll Parse (manual stubs)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run: QMP-03 Payroll Parse (manual stubs)": {
+      "main": [
+        [
+          {
+            "node": "Read Preparer Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Preparer Notes": {
+      "main": [
+        [
+          {
+            "node": "Merge preparer notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge preparer notes": {
+      "main": [
+        [
+          {
+            "node": "Run: QMP-04 Tax Estimate + Entity Comparison",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run: QMP-04 Tax Estimate + Entity Comparison": {
+      "main": [
+        [
+          {
+            "node": "Run: QMP-05 Client Scorecard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run: QMP-05 Client Scorecard": {
+      "main": [
+        [
+          {
+            "node": "Run: QMP-17 Tax Strategy Screener",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run: QMP-17 Tax Strategy Screener": {
+      "main": [
+        [
+          {
+            "node": "Run: QMP-19 Meeting Brief Compiler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run: QMP-19 Meeting Brief Compiler": {
+      "main": [
+        [
+          {
+            "node": "Notify Karen (approve link)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Karen (approve link)": {
+      "main": [
+        [
+          {
+            "node": "APPROVAL GATE (wait)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APPROVAL GATE (wait)": {
+      "main": [
+        [
+          {
+            "node": "Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved?": {
+      "main": [
+        [
+          {
+            "node": "Restore ctx (approved)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "To run log row (changes)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore ctx (approved)": {
+      "main": [
+        [
+          {
+            "node": "Run: QMP-20 Presentation Deck",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run: QMP-20 Presentation Deck": {
+      "main": [
+        [
+          {
+            "node": "To payment schedule rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "To payment schedule rows": {
+      "main": [
+        [
+          {
+            "node": "Append Payment Schedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Payment Schedule": {
+      "main": [
+        [
+          {
+            "node": "Karbon: meeting work item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Karbon: meeting work item": {
+      "main": [
+        [
+          {
+            "node": "To run log row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "To run log row": {
+      "main": [
+        [
+          {
+            "node": "Append Run Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Run Log": {
+      "main": [
+        [
+          {
+            "node": "Notify: prep complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "To run log row (changes)": {
+      "main": [
+        [
+          {
+            "node": "Append Run Log (changes)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Run Log (changes)": {
+      "main": [
+        [
+          {
+            "node": "Notify: changes requested",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "48h before each 'Quarterly' calendar meeting: builds the client context, runs every ingestion + analysis sub-workflow, compiles the Meeting Brief, gates on Karen's approval, then generates the deck, schedules payment reminders, creates the Karbon work item, and logs the run. Select each sub-workflow in the Run nodes after import."
+  }
+}

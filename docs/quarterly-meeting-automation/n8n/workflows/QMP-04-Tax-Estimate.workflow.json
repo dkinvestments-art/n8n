@@ -1,0 +1,118 @@
+{
+  "name": "QMP-04 Tax Estimate + Entity Comparison",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "input",
+      "name": "Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst userContent = 'Client: ' + ctx.client_name + '\\nEntity type: ' + ctx.entity_type + '   State: ' + ctx.state_primary +\n'\\nHas C-Corp: ' + ctx.has_c_corp + '   PTE election: ' + ctx.has_pte_election +\n'\\n\\n--- PROJECTED FINANCIALS (from QBO) ---\\n' + JSON.stringify(ctx.financials ?? {}) +\n'\\n\\n--- OWNER W-2 / WITHHOLDINGS (from pay stubs) ---\\n' + JSON.stringify(ctx.payroll ?? {}) +\n'\\n\\n--- PRIOR-YEAR TAX POSITION ---\\n' + JSON.stringify(ctx.tax_position ?? {}) +\n'\\n\\nRates: Federal individual per brackets; CA PTE 9.3%; C-corp 21% federal / 8.84% CA. ' +\n'CA quarterly schedule 30/40/0/30; Federal 25/25/25/25.';\nconst payload = {\n  model: 'claude-opus-4-8',\n  max_tokens: 16000,\n  thinking: { type: 'adaptive' },\n  system: \"You are computing quarterly estimated tax payments for a CPA to review, from a client's projected income and withholdings. Show every input and every step so the preparer can audit the math. Use the provided rates and the state's quarterly schedule. When you must annualize partial-year data, state the factor you used and flag it as a judgment call for the preparer. If the client has a C-corp, also compute the \\\"with vs. without C-corp\\\" comparison. Never present the numbers as final \\u2014 they are a draft for professional review. Output only the JSON schema.\",\n  messages: [{ role: 'user', content: userContent }],\n  output_config: { effort: 'high', format: { type: 'json_schema', schema: {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"projected_income\", \"projected_net_profit\", \"annualization_notes\", \"federal_liability\", \"state_liability\", \"total_withholdings\", \"quarterly_payments\", \"entity_comparison\", \"anomalies\"], \"properties\": {\"projected_income\": {\"type\": \"number\"}, \"projected_net_profit\": {\"type\": \"number\"}, \"annualization_notes\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"federal_liability\": {\"type\": \"number\"}, \"state_liability\": {\"type\": \"number\"}, \"total_withholdings\": {\"type\": \"number\"}, \"quarterly_payments\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"quarter\", \"federal\", \"state\", \"due_date\"], \"properties\": {\"quarter\": {\"type\": \"string\"}, \"federal\": {\"type\": \"number\"}, \"state\": {\"type\": \"number\"}, \"due_date\": {\"type\": \"string\"}}}}, \"entity_comparison\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"applicable\", \"with_ccorp_total\", \"without_ccorp_total\", \"savings\"], \"properties\": {\"applicable\": {\"type\": \"boolean\"}, \"with_ccorp_total\": {\"type\": [\"number\", \"null\"]}, \"without_ccorp_total\": {\"type\": [\"number\", \"null\"]}, \"savings\": {\"type\": [\"number\", \"null\"]}}}, \"anomalies\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}} } }\n};\nreturn [{ json: { ...$json, payload } }];\n"
+      },
+      "id": "Build_request_tax_estimate",
+      "name": "Build request: tax estimate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}"
+      },
+      "id": "Claude_tax_estimate",
+      "name": "Claude: tax estimate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "REPLACE_ASTUTE_ANTHROPIC",
+          "name": "Karen Astute Advisors Anthropic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Structured outputs: the JSON arrives as a string in content[0].text.\nconst text = $json.content?.[0]?.text ?? '{}';\nlet out; try { out = JSON.parse(text); } catch (e) { out = { parse_error: true, raw: text }; }\nconst ctx = $('Input').first().json;\nreturn [{ json: { ...ctx, tax_estimate: out } }];\n"
+      },
+      "id": "Parse_tax_estimate",
+      "name": "Parse: tax estimate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Build request: tax estimate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build request: tax estimate": {
+      "main": [
+        [
+          {
+            "node": "Claude: tax estimate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: tax estimate": {
+      "main": [
+        [
+          {
+            "node": "Parse: tax estimate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Computes draft quarterly estimated payments (federal + state + PTE) and the with/without C-corp comparison from ctx.financials + ctx.payroll + ctx.tax_position. Returns ctx + tax_estimate. Draft for preparer review — never final."
+  }
+}

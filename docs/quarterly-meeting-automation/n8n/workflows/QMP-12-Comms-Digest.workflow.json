@@ -1,0 +1,179 @@
+{
+  "name": "QMP-12 Client Communications Digest",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "input",
+      "name": "Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 50,
+        "simple": true,
+        "filters": {
+          "q": "={{ '(from:' + $('Input').first().json.gmail_query_alias + ' OR to:' + $('Input').first().json.gmail_query_alias + ') after:' + ($('Input').first().json.last_meeting_date || '2020/01/01').replaceAll('-', '/') }}"
+        },
+        "options": {}
+      },
+      "id": "gmail_pull",
+      "name": "Gmail: client threads since last meeting",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Gmail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst msgs = $input.all().map(i => i.json).map(m => ({\n  from: m.from?.value?.[0]?.address ?? m.From ?? '', subject: m.subject ?? m.Subject ?? '',\n  date: m.date ?? m.internalDate ?? '', snippet: (m.textPlain ?? m.snippet ?? '').slice(0, 1500)\n}));\nreturn [{ json: { ...ctx, communications: msgs } }];\n"
+      },
+      "id": "Compact_messages",
+      "name": "Compact messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst userContent = 'Client: ' + ctx.client_name + '\\nLast meeting date: ' + ctx.last_meeting_date +\n'\\n\\nCommunications since the last meeting:\\n' + JSON.stringify($json.communications ?? []);\nconst payload = {\n  model: 'claude-opus-4-8',\n  max_tokens: 8000,\n  system: \"You are a tax-firm assistant preparing an internal briefing for a CPA before a quarterly client meeting. You are given the client's email/communication threads since the last meeting. Produce a factual digest for the preparer. Do not give advice, do not invent facts, and do not infer commitments that are not stated. If something is ambiguous, mark it as \\\"unclear\\\". Output only the JSON schema.\",\n  messages: [{ role: 'user', content: userContent }],\n  output_config: { effort: 'high', format: { type: 'json_schema', schema: {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"firm_commitments\", \"client_commitments\", \"open_questions\", \"changes\", \"unresolved_threads\", \"sentiment\"], \"properties\": {\"firm_commitments\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"client_commitments\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"open_questions\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"changes\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"unresolved_threads\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"sentiment\": {\"type\": \"string\", \"enum\": [\"positive\", \"neutral\", \"concerned\", \"frustrated\", \"unclear\"]}}} } }\n};\nreturn [{ json: { ...$json, payload } }];\n"
+      },
+      "id": "Build_request_email_digest",
+      "name": "Build request: email digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}"
+      },
+      "id": "Claude_email_digest",
+      "name": "Claude: email digest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "REPLACE_ASTUTE_ANTHROPIC",
+          "name": "Karen Astute Advisors Anthropic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Structured outputs: the JSON arrives as a string in content[0].text.\nconst text = $json.content?.[0]?.text ?? '{}';\nlet out; try { out = JSON.parse(text); } catch (e) { out = { parse_error: true, raw: text }; }\nconst ctx = $('Input').first().json;\nreturn [{ json: { ...ctx, email_digest: out } }];\n"
+      },
+      "id": "Parse_email_digest",
+      "name": "Parse: email digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Compact messages": {
+      "main": [
+        [
+          {
+            "node": "Build request: email digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build request: email digest": {
+      "main": [
+        [
+          {
+            "node": "Claude: email digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: email digest": {
+      "main": [
+        [
+          {
+            "node": "Parse: email digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Gmail: client threads since last meeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: client threads since last meeting": {
+      "main": [
+        [
+          {
+            "node": "Compact messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Pulls client emails since the last meeting from Karen's Astute Gmail and digests them (commitments, questions, changes, sentiment). Returns ctx + email_digest."
+  }
+}

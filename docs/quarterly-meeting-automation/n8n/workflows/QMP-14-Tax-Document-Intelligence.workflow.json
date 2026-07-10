@@ -1,0 +1,261 @@
+{
+  "name": "QMP-14 Tax Document Intelligence",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "input",
+      "name": "Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst m = String(ctx.drive_tax_folder ?? '').match(/[-\\w]{25,}/);\nreturn [{ json: { ...ctx, tax_folder_id: m ? m[0] : '' } }];\n"
+      },
+      "id": "Extract_tax_folder_id",
+      "name": "Extract tax folder id",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "='{{ $json.tax_folder_id }}' in parents and mimeType='application/pdf'"
+            },
+            {
+              "name": "orderBy",
+              "value": "modifiedTime desc"
+            },
+            {
+              "name": "pageSize",
+              "value": "3"
+            },
+            {
+              "name": "fields",
+              "value": "files(id,name,modifiedTime)"
+            }
+          ]
+        }
+      },
+      "id": "Drive_list_tax_PDFs",
+      "name": "Drive: list tax PDFs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const files = ($json.files ?? []).slice(0, 3);\nif (!files.length) { return [{ json: { no_docs: true } }]; }\nreturn files.map(f => ({ json: f }));\n"
+      },
+      "id": "Split_tax_file_list",
+      "name": "Split tax file list",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.id }}?alt=media",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api"
+      },
+      "id": "Drive_download_tax_doc",
+      "name": "Drive: download tax doc",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst items = $input.all();\nconst docs = [];\nfor (const it of items) {\n  const b64 = it.binary?.data?.data;\n  if (b64) docs.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } });\n}\nif (!docs.length) { return [{ json: { ...ctx, tax_position: { notes: ['No tax documents found'], tax_year: null, agi: null, taxable_income: null, marginal_rate: null, effective_rate: null, carryforwards: [], elections: [], estimates_paid: null, safe_harbor_target: null } } }]; }\nconst payload = {\n  model: 'claude-opus-4-8', max_tokens: 8000,\n  system: \"You are extracting structured tax data from a client's tax returns and prior tax plans for internal use by a CPA. Extract only values that are explicitly present in the documents. Never estimate or fill gaps \\u2014 use null for anything not found. This feeds a tax projection, so accuracy matters more than completeness. Output only the JSON schema.\",\n  messages: [{ role: 'user', content: [...docs, { type: 'text', text: 'Extract the tax position for client ' + ctx.client_name + '.' }] }],\n  output_config: { effort: 'high', format: { type: 'json_schema', schema: {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"tax_year\", \"agi\", \"taxable_income\", \"marginal_rate\", \"effective_rate\", \"carryforwards\", \"elections\", \"estimates_paid\", \"safe_harbor_target\", \"notes\"], \"properties\": {\"tax_year\": {\"type\": [\"string\", \"null\"]}, \"agi\": {\"type\": [\"number\", \"null\"]}, \"taxable_income\": {\"type\": [\"number\", \"null\"]}, \"marginal_rate\": {\"type\": [\"number\", \"null\"]}, \"effective_rate\": {\"type\": [\"number\", \"null\"]}, \"carryforwards\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"type\", \"amount\"], \"properties\": {\"type\": {\"type\": \"string\"}, \"amount\": {\"type\": [\"number\", \"null\"]}}}}, \"elections\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"estimates_paid\": {\"type\": [\"number\", \"null\"]}, \"safe_harbor_target\": {\"type\": [\"number\", \"null\"]}, \"notes\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}} } }\n};\nreturn [{ json: { payload } }];\n"
+      },
+      "id": "Build_request_tax_position",
+      "name": "Build request: tax position",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}"
+      },
+      "id": "Claude_tax_position",
+      "name": "Claude: tax position",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        300
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "REPLACE_ASTUTE_ANTHROPIC",
+          "name": "Karen Astute Advisors Anthropic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nif ($json.tax_position) { return [{ json: $json }]; }\nconst text = $json.content?.[0]?.text ?? '{}';\nlet out; try { out = JSON.parse(text); } catch (e) { out = { parse_error: true, raw: text }; }\nreturn [{ json: { ...ctx, tax_position: out } }];\n"
+      },
+      "id": "Parse_tax_position",
+      "name": "Parse: tax position",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Extract tax folder id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract tax folder id": {
+      "main": [
+        [
+          {
+            "node": "Drive: list tax PDFs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: list tax PDFs": {
+      "main": [
+        [
+          {
+            "node": "Split tax file list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split tax file list": {
+      "main": [
+        [
+          {
+            "node": "Drive: download tax doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: download tax doc": {
+      "main": [
+        [
+          {
+            "node": "Build request: tax position",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build request: tax position": {
+      "main": [
+        [
+          {
+            "node": "Claude: tax position",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: tax position": {
+      "main": [
+        [
+          {
+            "node": "Parse: tax position",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Downloads the newest tax return / prior plan PDFs from the client's tax folder and extracts the Tax Position (carryforwards, elections, safe harbor). Returns ctx + tax_position."
+  }
+}

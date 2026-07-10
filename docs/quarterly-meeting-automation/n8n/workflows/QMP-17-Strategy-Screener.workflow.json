@@ -1,0 +1,242 @@
+{
+  "name": "QMP-17 Tax Strategy Screener",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "input",
+      "name": "Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_TAX_STRATEGY_LIBRARY_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Strategy Library"
+        },
+        "options": {},
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "review_status",
+              "lookupValue": "Firm-Approved"
+            }
+          ]
+        }
+      },
+      "id": "Read_Strategy_Library",
+      "name": "Read Strategy Library",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_CLIENT_STRATEGY_STATUS_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Client Strategy Status"
+        },
+        "options": {},
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "client_id",
+              "lookupValue": "={{ $('Input').first().json.client_id }}"
+            }
+          ]
+        }
+      },
+      "id": "Read_Client_Strategy_Status",
+      "name": "Read Client Strategy Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst library = $('Read Strategy Library').all().map(i => i.json);\nconst clientStatus = $('Read Client Strategy Status').all().map(i => i.json).filter(r => r.client_id);\nreturn [{ json: { ...ctx, _library: library, _client_status: clientStatus } }];\n"
+      },
+      "id": "Assemble_screener_input",
+      "name": "Assemble screener input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst userContent = 'Client: ' + ctx.client_name +\n'\\n\\n--- STRATEGY LIBRARY (Firm-Approved rows) ---\\n' + JSON.stringify($json._library ?? []) +\n'\\n\\n--- CLIENT DATA (financials + tax position + profile + questionnaire) ---\\n' +\nJSON.stringify({ profile: { entity_type: ctx.entity_type, state: ctx.state_primary, has_c_corp: ctx.has_c_corp, has_pte_election: ctx.has_pte_election },\n  financials: ctx.financials ?? null, tax_position: ctx.tax_position ?? null,\n  payroll: ctx.payroll ?? null, questionnaire: ctx.questionnaire ?? null, email_digest: ctx.email_digest ?? null }) +\n'\\n\\n--- ALREADY IMPLEMENTED / REJECTED FOR THIS CLIENT ---\\n' + JSON.stringify($json._client_status ?? []);\nconst payload = {\n  model: 'claude-opus-4-8',\n  max_tokens: 16000,\n  thinking: { type: 'adaptive' },\n  system: \"You are screening a curated tax-strategy library against one client's current data to surface planning opportunities for a CPA to evaluate. You are given: (1) the Strategy Library (each row: name, category, trigger conditions, savings heuristic, authority, risk rating, review status); (2) the client's data (financials, tax position, profile, questionnaire answers); (3) the client's strategy status (already implemented or previously rejected).\\nRules:\\n- ONLY consider strategies whose review_status is \\\"Firm-Approved\\\". Ignore Draft rows.\\n- SKIP any strategy already implemented or previously rejected for this client.\\n- A strategy is a candidate ONLY if the client's data actually satisfies its trigger conditions. Do not force matches.\\n- Estimate annual savings using the row's heuristic and the client's real numbers. Show your inputs. If you can't compute a number, give a range and mark it \\\"rough\\\".\\n- Rank candidates by estimated savings.\\n- This is a screen, not advice. Every candidate must be validated by the professional (and, for Moderate/Aggressive risk, a Blue J-backed memo) before it reaches the client. Never present a strategy as recommended.\\nOutput only the JSON schema.\",\n  messages: [{ role: 'user', content: userContent }],\n  output_config: { effort: 'high', format: { type: 'json_schema', schema: {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"candidates\", \"skipped\"], \"properties\": {\"candidates\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"strategy_id\", \"strategy_name\", \"risk_rating\", \"why_it_triggers\", \"estimated_annual_savings\", \"savings_basis\", \"requires_memo\", \"confidence\"], \"properties\": {\"strategy_id\": {\"type\": \"string\"}, \"strategy_name\": {\"type\": \"string\"}, \"risk_rating\": {\"type\": \"string\", \"enum\": [\"Conservative\", \"Moderate\", \"Aggressive\"]}, \"why_it_triggers\": {\"type\": \"string\"}, \"estimated_annual_savings\": {\"type\": [\"number\", \"null\"]}, \"savings_basis\": {\"type\": \"string\"}, \"requires_memo\": {\"type\": \"boolean\"}, \"confidence\": {\"type\": \"string\", \"enum\": [\"high\", \"medium\", \"rough\"]}}}}, \"skipped\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"strategy_name\", \"reason\"], \"properties\": {\"strategy_name\": {\"type\": \"string\"}, \"reason\": {\"type\": \"string\", \"enum\": [\"already_implemented\", \"previously_rejected\", \"triggers_not_met\", \"draft_row\"]}}}}}} } }\n};\nreturn [{ json: { ...$json, payload } }];\n"
+      },
+      "id": "Build_request_strategy_screene",
+      "name": "Build request: strategy screener",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}"
+      },
+      "id": "Claude_strategy_screener",
+      "name": "Claude: strategy screener",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        300
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "REPLACE_ASTUTE_ANTHROPIC",
+          "name": "Karen Astute Advisors Anthropic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Structured outputs: the JSON arrives as a string in content[0].text.\nconst text = $json.content?.[0]?.text ?? '{}';\nlet out; try { out = JSON.parse(text); } catch (e) { out = { parse_error: true, raw: text }; }\nconst ctx = $('Input').first().json;\nreturn [{ json: { ...ctx, strategies: out } }];\n"
+      },
+      "id": "Parse_strategy_screener",
+      "name": "Parse: strategy screener",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Assemble screener input": {
+      "main": [
+        [
+          {
+            "node": "Build request: strategy screener",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build request: strategy screener": {
+      "main": [
+        [
+          {
+            "node": "Claude: strategy screener",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: strategy screener": {
+      "main": [
+        [
+          {
+            "node": "Parse: strategy screener",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Read Strategy Library",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Strategy Library": {
+      "main": [
+        [
+          {
+            "node": "Read Client Strategy Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Client Strategy Status": {
+      "main": [
+        [
+          {
+            "node": "Assemble screener input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Screens every Firm-Approved strategy in the library against the client's fresh data; filters implemented/rejected; ranks by estimated savings. Returns ctx + strategies."
+  }
+}

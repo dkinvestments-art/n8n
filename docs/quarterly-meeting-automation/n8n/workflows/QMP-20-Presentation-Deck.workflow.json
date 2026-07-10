@@ -1,0 +1,146 @@
+{
+  "name": "QMP-20 Presentation Deck",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "input",
+      "name": "Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/drive/v3/files/PASTE_DECK_TEMPLATE_PRESENTATION_ID/copy",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: 'Quarterly Deck — ' + $json.client_name + ' — ' + $now.toFormat('yyyy-MM-dd') }) }}"
+      },
+      "id": "Drive_copy_deck_template",
+      "name": "Drive: copy deck template",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        300
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst b = ctx.brief ?? {}; const sc = ctx.scorecard ?? {}; const te = ctx.tax_estimate ?? {};\nconst money = (n) => n == null ? 'TBD' : ('$' + Math.round(n).toLocaleString('en-US'));\nconst pct = (n) => n == null ? 'TBD' : ((n * 100).toFixed(1) + '%');\nconst q1 = (te.quarterly_payments ?? [])[0] ?? {};\nconst strategies = (b.strategy_opportunities ?? []).slice(0, 3).map(s => s.strategy + ' (' + money(s.estimated_savings) + ')').join('\\n') || 'Under review';\nconst repl = {\n  CLIENT_NAME: ctx.client_name ?? '', MEETING_DATE: ctx.meeting_date ?? '',\n  EXEC_SUMMARY: (b.executive_summary ?? []).join('\\n'),\n  REVENUE: money(sc.revenue?.current), REVENUE_CHANGE: pct((sc.revenue?.pct_change ?? 0) / 100),\n  TAKE_HOME: money(sc.owner_take_home?.current), NET_MARGIN: pct(sc.net_margin?.current),\n  TAX_SAVINGS: money(te.entity_comparison?.savings),\n  Q_FED: money(q1.federal), Q_STATE: money(q1.state), Q_DUE: q1.due_date ?? 'TBD',\n  STRATEGIES: strategies,\n  NEXT_90: (b.key_talking_points ?? []).slice(0, 3).join('\\n'),\n};\nconst requests = Object.entries(repl).map(([k, v]) => ({ replaceAllText: {\n  containsText: { text: '{{' + k + '}}', matchCase: true }, replaceText: String(v) } }));\nreturn [{ json: { presentationId: $json.id, requests } }];\n"
+      },
+      "id": "Build_replaceAllText_requests",
+      "name": "Build replaceAllText requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://slides.googleapis.com/v1/presentations/{{ $json.presentationId }}:batchUpdate",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSlidesOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ requests: $json.requests }) }}"
+      },
+      "id": "Slides_fill_placeholders",
+      "name": "Slides: fill placeholders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "credentials": {
+        "googleSlidesOAuth2Api": {
+          "id": "REPLACE_ASTUTE_GOOGLE",
+          "name": "Karen Astute Advisors Google Slides"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Input').first().json;\nconst pid = $('Build replaceAllText requests').first().json.presentationId;\nreturn [{ json: { ...ctx, deck_id: pid, deck_url: 'https://docs.google.com/presentation/d/' + pid + '/edit' } }];\n"
+      },
+      "id": "Return_deck_url",
+      "name": "Return deck url",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Drive: copy deck template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: copy deck template": {
+      "main": [
+        [
+          {
+            "node": "Build replaceAllText requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build replaceAllText requests": {
+      "main": [
+        [
+          {
+            "node": "Slides: fill placeholders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slides: fill placeholders": {
+      "main": [
+        [
+          {
+            "node": "Return deck url",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Copies the Astute deck template and fills placeholders from the approved brief via the Slides API. Returns ctx + deck_url. Runs only after the approval gate."
+  }
+}
