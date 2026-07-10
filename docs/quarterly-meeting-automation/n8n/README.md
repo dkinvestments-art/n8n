@@ -119,3 +119,60 @@ against Karen's live n8n**. The developer should validate node parameters
 against the installed n8n version and complete the placeholders before
 production use. This is the blueprint to build against — not a finished,
 runnable-end-to-end automation.
+
+---
+
+## AI Node Prompts — `Claude-Prompts.md`
+
+Production-ready Claude prompts for every AI node in the main pipeline (email
+digest, transcript recap, tax position extract, books health, strategy screener,
+tax estimate + entity comparison, scorecard, and the Meeting Brief compiler).
+
+Each entry gives the exact **Anthropic Messages API** call for an n8n HTTP Request
+node: system prompt, user prompt (with `{{ }}` placeholders), a JSON Schema for
+`output_config.format` (structured outputs, so n8n gets reliable JSON back), and
+the model/effort/thinking settings. Model defaults to `claude-opus-4-8`; the doc
+notes where the firm may opt into a cheaper model for simple extraction.
+
+---
+
+## Worked Example — `Astute-QBO-Books-Health.workflow.json`
+
+A **fully-wired, near-runnable** example of one ingestion→AI node, so the developer
+has a concrete pattern to copy for the others. 9 nodes:
+
+1. Manual trigger → **Config** (client name, QBO `realmId`, API base)
+2. **QBO: A/R aging**, **A/P aging**, **Balance Sheet** — real QBO API v3 report
+   pulls (`/v3/company/{realmId}/reports/...`) via the QuickBooks credential
+3. **QBO: recent transactions** — a `SELECT * FROM Purchase` query
+4. **Build Claude request** (Code) — assembles the QBO data and builds the
+   Anthropic payload with the Books Health prompt + structured-output schema
+5. **Claude: Books Health** — real `POST https://api.anthropic.com/v1/messages`
+   call via the Anthropic credential
+6. **Parse Books Health** (Code) — parses the structured JSON into
+   `books_health` for the brief
+
+Verified: JSON valid, all connections resolve, both Code nodes compile, and the
+request builder produces a valid Anthropic payload + schema at runtime.
+
+### Setup
+1. Import the JSON into Karen's n8n.
+2. Select Karen's **Astute QuickBooks** credential on the four QBO nodes and her
+   **Astute Anthropic** credential on the Claude node.
+3. In **Config**, set the client's QBO `realmId` (and `qbo_base` —
+   `https://quickbooks.api.intuit.com` for production, or the sandbox base while
+   testing).
+4. Run. `Parse Books Health` outputs the `books_health` object that feeds the
+   Meeting Brief's Books Health section.
+
+### Pattern to copy
+Every other ingestion→AI node follows this same shape: **pull (HTTP) → Build
+Claude request (Code, using the matching prompt from `Claude-Prompts.md`) →
+Claude (HTTP) → Parse (Code)**. Swap the data source and the prompt/schema; keep
+the structure.
+
+### Same caveat
+Real endpoints and a real Anthropic call, but not executed against Karen's live
+QBO/n8n from the build environment — the developer should do one validation run
+and confirm the QuickBooks + Anthropic credential types match the installed n8n
+version.

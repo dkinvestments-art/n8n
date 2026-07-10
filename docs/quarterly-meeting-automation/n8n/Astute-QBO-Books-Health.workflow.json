@@ -1,0 +1,376 @@
+{
+  "name": "Astute — QBO Books Health (worked example)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Run books health check",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "client_name",
+              "type": "string",
+              "value": "PASTE_CLIENT_NAME"
+            },
+            {
+              "id": "a2",
+              "name": "realmId",
+              "type": "string",
+              "value": "PASTE_CLIENT_QBO_REALM_ID"
+            },
+            {
+              "id": "a3",
+              "name": "qbo_base",
+              "type": "string",
+              "value": "https://quickbooks.api.intuit.com"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "config",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=={{ $('Config').first().json.qbo_base }}/v3/company/{{ $('Config').first().json.realmId }}/reports/AgedReceivables",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "minorversion",
+              "value": "73"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "QBO:_A/R_aging",
+      "name": "QBO: A/R aging",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "REPLACE_ASTUTE_QBO",
+          "name": "Karen Astute Advisors QuickBooks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=={{ $('Config').first().json.qbo_base }}/v3/company/{{ $('Config').first().json.realmId }}/reports/AgedPayables",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "minorversion",
+              "value": "73"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "QBO:_A/P_aging",
+      "name": "QBO: A/P aging",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "REPLACE_ASTUTE_QBO",
+          "name": "Karen Astute Advisors QuickBooks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=={{ $('Config').first().json.qbo_base }}/v3/company/{{ $('Config').first().json.realmId }}/reports/BalanceSheet",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "minorversion",
+              "value": "73"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "QBO:_Balance_Sheet",
+      "name": "QBO: Balance Sheet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "REPLACE_ASTUTE_QBO",
+          "name": "Karen Astute Advisors QuickBooks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=={{ $('Config').first().json.qbo_base }}/v3/company/{{ $('Config').first().json.realmId }}/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "minorversion",
+              "value": "73"
+            },
+            {
+              "name": "query",
+              "value": "SELECT * FROM Purchase ORDERBY TxnDate DESC MAXRESULTS 50"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "qbo_txn",
+      "name": "QBO: recent transactions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        300
+      ],
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "REPLACE_ASTUTE_QBO",
+          "name": "Karen Astute Advisors QuickBooks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Assemble the QBO pulls and build the Anthropic Messages API request.\nconst client = $('Config').first().json.client_name;\nconst ar = JSON.stringify($('QBO: A/R aging').first().json);\nconst ap = JSON.stringify($('QBO: A/P aging').first().json);\nconst bs = JSON.stringify($('QBO: Balance Sheet').first().json);\nconst txns = JSON.stringify($('QBO: recent transactions').first().json);\nconst userContent =\n  `Client: ${client}\\n\\n--- A/R AGING ---\\n${ar}\\n\\n--- A/P AGING ---\\n${ap}` +\n  `\\n\\n--- BALANCE SHEET ---\\n${bs}\\n\\n--- RECENT TRANSACTIONS ---\\n${txns}`;\nconst payload = {\n  model: 'claude-opus-4-8',\n  max_tokens: 8000,\n  system: \"You are a CPA's assistant producing a \\\"Books Health\\\" section for a quarterly meeting brief. You are given QuickBooks data: A/R aging, A/P aging, balance sheet, and a list of recent transactions. Summarize the state of the books plainly. Flag: stale or large uncategorized items, aged receivables or payables, negative or unusual balances, and anything that would make the financials unreliable for tax projection. Propose a likely category for each uncategorized transaction, but mark each proposal as needs_review=true \\u2014 a human approves before anything is applied. Do not invent transactions. Output only the JSON schema.\",\n  messages: [{ role: 'user', content: userContent }],\n  output_config: { effort: 'high', format: { type: 'json_schema', schema: {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"close_status\", \"summary\", \"flags\", \"uncategorized_proposals\", \"ar_summary\", \"ap_summary\"], \"properties\": {\"close_status\": {\"type\": \"string\", \"enum\": [\"clean\", \"minor_issues\", \"needs_attention\", \"not_reliable\"]}, \"summary\": {\"type\": \"string\"}, \"flags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"uncategorized_proposals\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"transaction\", \"amount\", \"proposed_category\", \"confidence\", \"needs_review\"], \"properties\": {\"transaction\": {\"type\": \"string\"}, \"amount\": {\"type\": [\"number\", \"null\"]}, \"proposed_category\": {\"type\": \"string\"}, \"confidence\": {\"type\": \"string\", \"enum\": [\"high\", \"medium\", \"low\"]}, \"needs_review\": {\"type\": \"boolean\"}}}}, \"ar_summary\": {\"type\": \"string\"}, \"ap_summary\": {\"type\": \"string\"}}} } }\n};\nreturn [{ json: { payload } }];\n"
+      },
+      "id": "build",
+      "name": "Build Claude request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {}
+      },
+      "id": "claude",
+      "name": "Claude: Books Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        300
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "REPLACE_ASTUTE_ANTHROPIC",
+          "name": "Karen Astute Advisors Anthropic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Anthropic returns the JSON as a string in content[0].text (structured outputs).\nconst text = $json.content?.[0]?.text ?? '{}';\nlet booksHealth;\ntry { booksHealth = JSON.parse(text); } catch (e) { booksHealth = { parse_error: true, raw: text }; }\nreturn [{ json: { books_health: booksHealth } }];\n"
+      },
+      "id": "parse",
+      "name": "Parse Books Health",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Run books health check": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "QBO: A/R aging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QBO: A/R aging": {
+      "main": [
+        [
+          {
+            "node": "QBO: A/P aging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QBO: A/P aging": {
+      "main": [
+        [
+          {
+            "node": "QBO: Balance Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QBO: Balance Sheet": {
+      "main": [
+        [
+          {
+            "node": "QBO: recent transactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QBO: recent transactions": {
+      "main": [
+        [
+          {
+            "node": "Build Claude request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Claude request": {
+      "main": [
+        [
+          {
+            "node": "Claude: Books Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: Books Health": {
+      "main": [
+        [
+          {
+            "node": "Parse Books Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Worked example: pull QBO A/R + A/P aging, Balance Sheet, and recent transactions, then call Claude with the Books Health prompt to produce the brief's Books Health section. Select Karen's Astute QuickBooks and Anthropic credentials; set the client's realmId in Config."
+  }
+}
