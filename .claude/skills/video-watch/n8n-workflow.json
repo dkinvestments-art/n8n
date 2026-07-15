@@ -1,0 +1,245 @@
+{
+	"name": "Video Watch - Transcript, Summary, Obsidian Note",
+	"nodes": [
+		{
+			"parameters": {
+				"content": "## Video Watch\nFill in **Video Input**, then run the workflow manually.\n\nRequires:\n- `yt-dlp` installed on the n8n host (`pip install -U yt-dlp`)\n- An Anthropic credential set on the **Anthropic Chat Model** node\n- Adjust `vaultPath` / `folder` in **Video Input** to match your Obsidian vault\n\nSee `references/n8n-workflow-setup.md` for full setup notes.",
+				"height": 260,
+				"width": 360
+			},
+			"id": "8f0f7e1a-1111-4a2b-9c1d-000000000001",
+			"name": "Setup Notes",
+			"type": "n8n-nodes-base.stickyNote",
+			"typeVersion": 1,
+			"position": [-800, 40]
+		},
+		{
+			"parameters": {},
+			"id": "8f0f7e1a-1111-4a2b-9c1d-000000000002",
+			"name": "When clicking \"Execute Workflow\"",
+			"type": "n8n-nodes-base.manualTrigger",
+			"typeVersion": 1,
+			"position": [-800, 320]
+		},
+		{
+			"parameters": {
+				"assignments": {
+					"assignments": [
+						{
+							"id": "video-url",
+							"name": "videoUrl",
+							"value": "https://youtu.be/VIDEO_ID",
+							"type": "string"
+						},
+						{
+							"id": "vault-path",
+							"name": "vaultPath",
+							"value": "/dmac/Documents/knowledge base",
+							"type": "string"
+						},
+						{
+							"id": "folder",
+							"name": "folder",
+							"value": "Education",
+							"type": "string"
+						}
+					]
+				},
+				"options": {}
+			},
+			"id": "8f0f7e1a-1111-4a2b-9c1d-000000000003",
+			"name": "Video Input",
+			"type": "n8n-nodes-base.set",
+			"typeVersion": 3.4,
+			"position": [-560, 320]
+		},
+		{
+			"parameters": {
+				"command": "=mkdir -p /tmp/video-watch && rm -f /tmp/video-watch/*.vtt /tmp/video-watch/meta.json\nyt-dlp --dump-json --skip-download --no-warnings \"{{ $json.videoUrl }}\" > /tmp/video-watch/meta.json 2>/tmp/video-watch/meta.err\nyt-dlp --skip-download --no-warnings --write-auto-sub --write-sub --sub-lang \"en.*,en\" --sub-format vtt --convert-subs vtt -o \"/tmp/video-watch/%(id)s.%(ext)s\" \"{{ $json.videoUrl }}\" 2>/tmp/video-watch/sub.err\necho \"===META===\"\ncat /tmp/video-watch/meta.json 2>/dev/null\necho \"===VTT===\"\ncat /tmp/video-watch/*.vtt 2>/dev/null\necho \"===END===\""
+			},
+			"id": "8f0f7e1a-1111-4a2b-9c1d-000000000004",
+			"name": "Fetch Transcript & Metadata",
+			"type": "n8n-nodes-base.executeCommand",
+			"typeVersion": 1,
+			"position": [-320, 320]
+		},
+		{
+			"parameters": {
+				"jsCode": "const stdout = $input.first().json.stdout || '';\n\nconst metaBlock = stdout.split('===META===')[1]?.split('===VTT===')[0]?.trim() || '';\nconst vttBlock = stdout.split('===VTT===')[1]?.split('===END===')[0]?.trim() || '';\n\nlet meta = {};\ntry {\n  // yt-dlp --dump-json prints one JSON object per line (per video); use the first.\n  const firstLine = metaBlock.split('\\n')[0];\n  meta = firstLine ? JSON.parse(firstLine) : {};\n} catch (e) {\n  meta = {};\n}\n\nfunction vttToText(vtt) {\n  if (!vtt) return '';\n  const out = [];\n  let lastLine = null;\n  for (const raw of vtt.split('\\n')) {\n    let line = raw.trim();\n    if (!line || line === 'WEBVTT' || line.includes('-->') || /^\\d+$/.test(line)) continue;\n    line = line.replace(/<[^>]+>/g, '').trim();\n    if (!line || line === lastLine) continue;\n    out.push(line);\n    lastLine = line;\n  }\n  return out.join('\\n');\n}\n\nconst transcript = vttToText(vttBlock);\nconst videoInput = $('Video Input').item.json;\n\nreturn [{\n  json: {\n    videoUrl: videoInput.videoUrl,\n    vaultPath: videoInput.vaultPath,\n    folder: videoInput.folder,\n    title: meta.title || 'Untitled Video',\n    channel: meta.uploader || meta.channel || 'Unknown',\n    uploadDate: meta.upload_date || '',\n    duration: meta.duration || null,\n    transcript: transcript || '(No transcript could be extracted automatically - paste it manually and re-run from here.)',\n  },\n}];"
+			},
+			"id": "8f0f7e1a-1111-4a2b-9c1d-000000000005",
+			"name": "Parse Transcript",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [-80, 320]
+		},
+		{
+			"parameters": {
+				"promptType": "define",
+				"text": "=You are helping build a personal knowledge base note from a video transcript.\n\nVideo title: {{ $json.title }}\nCreator: {{ $json.channel }}\n\nBased on the transcript below, write markdown with exactly these sections:\n\n## Summary\n(2-4 sentence overview)\n\n## Main Points\n(bulleted list of the core content, in the order it builds)\n\n## Nuances & Notable Details\n(specific caveats, asides, examples, or contrarian takes the speaker emphasized that a generic summary would miss - look for moments like \"most people get this wrong\" or a specific number/threshold/exception)\n\n## Actionable Insights\n(checklist items - concrete steps the viewer could take, using \"- [ ] \")\n\nTranscript:\n{{ $json.transcript }}",
+				"options": {}
+			},
+			"id": "8f0f7e1a-1111-4a2b-9c1d-000000000006",
+			"name": "Summarize Video",
+			"type": "@n8n/n8n-nodes-langchain.chainLlm",
+			"typeVersion": 1.7,
+			"position": [160, 320]
+		},
+		{
+			"parameters": {
+				"model": {
+					"__rl": true,
+					"mode": "list",
+					"value": "claude-sonnet-4-20250514",
+					"cachedResultName": "Claude 4 Sonnet"
+				},
+				"options": {}
+			},
+			"id": "8f0f7e1a-1111-4a2b-9c1d-000000000007",
+			"name": "Anthropic Chat Model",
+			"type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+			"typeVersion": 1.3,
+			"position": [160, 540],
+			"credentials": {
+				"anthropicApi": {
+					"id": "REPLACE_WITH_CREDENTIAL_ID",
+					"name": "Anthropic account"
+				}
+			}
+		},
+		{
+			"parameters": {
+				"jsCode": "const parsed = $('Parse Transcript').item.json;\nconst summaryMarkdown = $json.text || '(summary unavailable)';\n\nconst dateWatched = $now.toFormat('yyyy-LL-dd');\n\nfunction sanitize(title) {\n  return (title || 'Untitled Video')\n    .replace(/[\\\\/:*?\"<>|]/g, '-')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .slice(0, 150);\n}\n\nconst safeTitle = sanitize(parsed.title);\nconst platform = parsed.videoUrl.includes('skool.com')\n  ? 'Skool'\n  : (parsed.videoUrl.includes('youtu') ? 'YouTube' : 'Video');\n\nconst frontmatter = `---\ntitle: \"${parsed.title}\"\nsource: ${parsed.videoUrl}\nplatform: ${platform}\ncreator: ${parsed.channel}\ndate_watched: ${dateWatched}\ntags: [video-notes, ${platform.toLowerCase()}]\n---`;\n\nconst noteContent = `${frontmatter}\n\n# ${parsed.title}\n\n**Source:** [${platform} link](${parsed.videoUrl})\n**Creator:** ${parsed.channel}\n**Date watched:** ${dateWatched}\n\n${summaryMarkdown}\n\n## Full Transcript\n\n<details>\n<summary>Click to expand transcript</summary>\n\n${parsed.transcript}\n\n</details>\n`;\n\nreturn [{\n  json: {\n    noteContent,\n    fileName: safeTitle,\n    vaultPath: parsed.vaultPath,\n    folder: parsed.folder,\n  },\n}];"
+			},
+			"id": "8f0f7e1a-1111-4a2b-9c1d-000000000008",
+			"name": "Build Note",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [400, 320]
+		},
+		{
+			"parameters": {
+				"operation": "toText",
+				"sourceProperty": "noteContent",
+				"binaryPropertyName": "data",
+				"options": {
+					"fileName": "={{ $json.fileName }}.md"
+				}
+			},
+			"id": "8f0f7e1a-1111-4a2b-9c1d-000000000009",
+			"name": "Convert Note to File",
+			"type": "n8n-nodes-base.convertToFile",
+			"typeVersion": 1.1,
+			"position": [640, 320]
+		},
+		{
+			"parameters": {
+				"operation": "write",
+				"fileName": "={{ $('Build Note').item.json.vaultPath }}/{{ $('Build Note').item.json.folder }}/{{ $('Build Note').item.json.fileName }}.md",
+				"dataPropertyName": "data",
+				"options": {}
+			},
+			"id": "8f0f7e1a-1111-4a2b-9c1d-000000000010",
+			"name": "Save to Obsidian Vault",
+			"type": "n8n-nodes-base.readWriteFile",
+			"typeVersion": 1,
+			"position": [880, 320]
+		}
+	],
+	"connections": {
+		"When clicking \"Execute Workflow\"": {
+			"main": [
+				[
+					{
+						"node": "Video Input",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Video Input": {
+			"main": [
+				[
+					{
+						"node": "Fetch Transcript & Metadata",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Fetch Transcript & Metadata": {
+			"main": [
+				[
+					{
+						"node": "Parse Transcript",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Parse Transcript": {
+			"main": [
+				[
+					{
+						"node": "Summarize Video",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Summarize Video": {
+			"main": [
+				[
+					{
+						"node": "Build Note",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Anthropic Chat Model": {
+			"ai_languageModel": [
+				[
+					{
+						"node": "Summarize Video",
+						"type": "ai_languageModel",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Build Note": {
+			"main": [
+				[
+					{
+						"node": "Convert Note to File",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Convert Note to File": {
+			"main": [
+				[
+					{
+						"node": "Save to Obsidian Vault",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		}
+	},
+	"pinData": {},
+	"active": false,
+	"settings": {
+		"executionOrder": "v1"
+	},
+	"tags": []
+}
